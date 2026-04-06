@@ -105,9 +105,15 @@
   </main>
 
   <div class="washi"></div>
-  <footer>made with lots of ♡ · <a href="#" onclick="showAdminPrompt(event)">✦</a></footer>
+  <footer>made with lots of ♡ · <a href="admin.html">✦</a></footer>
 
   <script>
+    const authHashKeys = ['invite_token', 'confirmation_token', 'recovery_token', 'access_token'];
+
+    if (authHashKeys.some(key => window.location.hash.includes(key + '='))) {
+      window.location.replace('admin.html' + window.location.hash);
+    }
+
     const petals=['🌸','🌷','🍃','✿','❀','🌼'];
     for(let i=0;i<10;i++){
       const p=document.createElement('div');p.className='petal';
@@ -117,11 +123,6 @@
       p.style.animationDuration=(9+Math.random()*10)+'s';
       p.style.animationDelay=(Math.random()*12)+'s';
       document.body.appendChild(p);
-    }
-    function showAdminPrompt(e){
-      e.preventDefault();
-      const pw=prompt('✦ admin access ✦\nenter password:');
-      if(pw){localStorage.setItem('scrapbook_admin_attempt',pw);window.location.href='admin.html';}
     }
   </script>
 </body>

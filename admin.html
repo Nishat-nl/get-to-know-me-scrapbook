@@ -92,10 +92,24 @@
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-title">admin portal ✦</div>
-    <div class="login-sub">your scrapbook headquarters 🌸</div>
-    <div class="form-group"><input type="password" id="pwInput" placeholder="enter password..." onkeydown="if(event.key==='Enter')login()"/></div>
-    <button class="btn btn-rose" onclick="login()" style="width:100%">enter ✦</button>
-    <div class="error-msg" id="errorMsg">wrong password 🌿</div>
+    <div class="login-sub">sign in with your Netlify Identity email 🌸</div>
+
+    <div class="form-group">
+      <input type="email" id="emailInput" placeholder="your email" onkeydown="if(event.key==='Enter')login()"/>
+    </div>
+
+    <div class="form-group">
+      <input type="password" id="passwordInput" placeholder="your password" onkeydown="if(event.key==='Enter')login()"/>
+    </div>
+
+    <button class="btn btn-rose" onclick="login()" style="width:100%">log in ✦</button>
+
+    <div class="error-msg" id="errorMsg">login failed 🌿</div>
+
+    <p id="authStatus" style="font-size:.8rem;color:var(--text-light);font-style:italic;margin-top:.8rem">
+      invite-only login is enabled. use your invited email.
+    </p>
+
     <br><a href="index.html" style="font-size:.8rem;color:var(--text-light);font-style:italic">← back to site</a>
   </div>
 </div>
@@ -198,37 +212,132 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
-  // =========================================
-  // ★ SET YOUR ADMIN PASSWORD HERE ★
-  const ADMIN_PASSWORD = 'leavenow123';
-  // =========================================
+<script type="module">
+  import {
+    login as identityLogin,
+    getUser,
+    logout as identityLogout,
+    handleAuthCallback
+  } from 'https://esm.sh/@netlify/identity';
 
-  function login(){
-    const pw=document.getElementById('pwInput').value;
-    if(pw===ADMIN_PASSWORD){
-      sessionStorage.setItem('scrapbook_admin','1');
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('adminScreen').classList.add('visible');
-      initAdmin();
+  window.netlifyIdentityApi = {
+    identityLogin,
+    getUser,
+    identityLogout,
+    handleAuthCallback
+  };
+
+  window.dispatchEvent(new Event('netlify-identity-ready'));
+</script>
+
+<script>
+  let adminInitialized = false;
+
+  function waitForIdentityApi(){
+    if(window.netlifyIdentityApi) return Promise.resolve(window.netlifyIdentityApi);
+    return new Promise(resolve=>{
+      window.addEventListener('netlify-identity-ready', ()=>resolve(window.netlifyIdentityApi), { once:true });
+    });
+  }
+
+  function showLogin(message=''){
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('adminScreen').classList.remove('visible');
+
+    const error=document.getElementById('errorMsg');
+    const status=document.getElementById('authStatus');
+
+    error.style.display='none';
+    if(message){
+      status.textContent=message;
     } else {
-      document.getElementById('errorMsg').style.display='block';
-      document.getElementById('pwInput').value='';
+      status.textContent='invite-only login is enabled. use your invited email.';
     }
   }
-  function logout(){sessionStorage.removeItem('scrapbook_admin');location.reload()}
-  window.onload=()=>{
-    const attempt=localStorage.getItem('scrapbook_admin_attempt');
-    if(attempt===ADMIN_PASSWORD||sessionStorage.getItem('scrapbook_admin')==='1'){
-      localStorage.removeItem('scrapbook_admin_attempt');
-      sessionStorage.setItem('scrapbook_admin','1');
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('adminScreen').classList.add('visible');
+
+  function showAdmin(){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('adminScreen').classList.add('visible');
+
+    if(!adminInitialized){
       initAdmin();
-    } else {
-      localStorage.removeItem('scrapbook_admin_attempt');
+      adminInitialized = true;
     }
-  };
+  }
+
+  async function login(){
+    const email=document.getElementById('emailInput').value.trim();
+    const password=document.getElementById('passwordInput').value;
+
+    if(!email || !password){
+      const error=document.getElementById('errorMsg');
+      error.textContent='enter your email and password 🌿';
+      error.style.display='block';
+      return;
+    }
+
+    const error=document.getElementById('errorMsg');
+    const status=document.getElementById('authStatus');
+    error.style.display='none';
+    status.textContent='logging in...';
+
+    try{
+      const api = await waitForIdentityApi();
+      await api.identityLogin(email, password);
+      status.textContent='logged in ✦';
+      document.getElementById('passwordInput').value='';
+      showAdmin();
+    }catch(err){
+      console.error(err);
+      error.textContent='login failed 🌿 check your email/password';
+      error.style.display='block';
+      status.textContent='invite-only login is enabled. use your invited email.';
+    }
+  }
+
+  async function logout(){
+    try{
+      const api = await waitForIdentityApi();
+      await api.identityLogout();
+    }catch(err){
+      console.error(err);
+    }
+    location.href='admin.html';
+  }
+
+  async function bootAdminAuth(){
+    const status=document.getElementById('authStatus');
+    const error=document.getElementById('errorMsg');
+
+    showLogin('checking login...');
+
+    try{
+      const api = await waitForIdentityApi();
+
+      const callbackResult = await api.handleAuthCallback();
+
+      if(callbackResult){
+        history.replaceState({}, '', 'admin.html');
+      }
+
+      const user = await api.getUser();
+
+      if(user){
+        showAdmin();
+        return;
+      }
+
+      showLogin();
+    }catch(err){
+      console.error(err);
+      error.textContent='could not complete login callback 🌿';
+      error.style.display='block';
+      status.textContent='try opening admin.html again.';
+      showLogin('try opening admin.html again.');
+    }
+  }
+
+  window.addEventListener('load', bootAdminAuth);
 
   function showTab(name,btn){
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
