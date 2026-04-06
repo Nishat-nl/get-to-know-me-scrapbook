@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>my favourites ⭐</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    .container{max-width:780px;margin:0 auto;padding:0 1.2rem 4rem}
+    .no-favs{text-align:center;padding:3rem 1rem;font-style:italic;color:var(--text-light);font-size:1.05rem}
+    .no-favs div:first-child{font-size:3rem;margin-bottom:1rem}
+
+    /* Category tabs */
+    .cat-tabs{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;margin:1.5rem 0}
+    .cat-tab{
+      background:var(--paper);border:1.5px solid var(--dusty-pink);
+      border-radius:20px;padding:.45rem 1rem;cursor:pointer;
+      font-family:'Lora',serif;font-size:.85rem;color:var(--text-light);
+      transition:all .2s;display:flex;align-items:center;gap:.4rem;
+    }
+    .cat-tab:hover{border-color:var(--rose);color:var(--rose);transform:translateY(-2px)}
+    .cat-tab.active{background:var(--rose);border-color:var(--rose);color:white}
+    .cat-tab .cat-emoji{font-size:1rem}
+
+    /* Category section */
+    .cat-section{margin-bottom:2.5rem;animation:fadeIn .4s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+    .cat-header{
+      display:flex;align-items:center;gap:.7rem;
+      margin-bottom:1.2rem;padding-bottom:.7rem;
+      border-bottom:2px dashed rgba(232,180,184,.5);
+    }
+    .cat-header-emoji{font-size:2rem}
+    .cat-header-title{font-family:'Dancing Script',cursive;font-size:2rem;color:var(--rose)}
+
+    /* Items grid */
+    .fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.9rem}
+    @media(max-width:480px){.fav-grid{grid-template-columns:repeat(2,1fr)}}
+
+    .fav-card{
+      background:var(--paper);border-radius:10px;
+      padding:1.1rem .9rem 1rem;text-align:center;
+      box-shadow:2px 2px 8px rgba(139,111,94,.08);
+      position:relative;transition:transform .2s,box-shadow .2s;
+      cursor:default;
+    }
+    .fav-card:hover{transform:translateY(-4px);box-shadow:4px 8px 20px rgba(139,111,94,.15)}
+    .fav-card::before{content:'✦';position:absolute;top:5px;right:8px;font-size:.55rem;color:var(--dusty-pink)}
+
+    /* Washi tape on top */
+    .fav-card::after{
+      content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%) rotate(-1.5deg);
+      width:36px;height:13px;border-radius:2px;
+      background:rgba(201,192,211,.6);
+    }
+
+    .fav-card-emoji{font-size:2rem;display:block;margin-bottom:.6rem}
+    .fav-card-name{font-size:.85rem;color:var(--text);font-weight:normal;line-height:1.3;margin-bottom:.3rem}
+    .fav-card-note{font-size:.72rem;font-style:italic;color:var(--text-light);line-height:1.3}
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <a href="index.html" class="back-btn">← back home</a>
+    <div class="page-title">my favourites</div>
+    <div class="page-sub">a little collection of things i love ⭐</div>
+  </div>
+  <div class="washi sage"></div>
+
+  <div class="container">
+    <div class="cat-tabs" id="catTabs"></div>
+    <div id="favsContent"></div>
+  </div>
+
+  <script>
+    function getFavourites(){
+      const def=[
+        {id:'cat1',name:'movies',emoji:'🎬',items:[
+          {emoji:'🌸',name:'little women',note:'i cry every time'},
+          {emoji:'🍫',name:'amélie',note:'pure magic'},
+          {emoji:'🕯️',name:'pride & prejudice',note:'the 2005 one always'}
+        ]},
+        {id:'cat2',name:'series',emoji:'📺',items:[
+          {emoji:'🌿',name:'anne with an e',note:'cottagecore dream'},
+          {emoji:'🍵',name:'gilmore girls',note:'lorelai is my spirit animal'}
+        ]},
+        {id:'cat3',name:'foods',emoji:'🍜',items:[
+          {emoji:'🍵',name:'matcha latte',note:'daily necessity'},
+          {emoji:'🥐',name:'croissants',note:'butter is a personality'},
+          {emoji:'🍓',name:'strawberries',note:'only in season tho'}
+        ]}
+      ];
+      return JSON.parse(localStorage.getItem('scrapbook_favourites')||JSON.stringify(def));
+    }
+
+    let activeCategory='all';
+
+    function renderTabs(){
+      const cats=getFavourites();
+      const tabs=document.getElementById('catTabs');
+      tabs.innerHTML='';
+      if(!cats.length)return;
+      const allTab=document.createElement('div');
+      allTab.className='cat-tab'+(activeCategory==='all'?' active':'');
+      allTab.innerHTML='<span class="cat-emoji">✦</span> all';
+      allTab.onclick=()=>{activeCategory='all';renderAll()};
+      tabs.appendChild(allTab);
+      cats.forEach(cat=>{
+        const tab=document.createElement('div');
+        tab.className='cat-tab'+(activeCategory===cat.id?' active':'');
+        tab.innerHTML=`<span class="cat-emoji">${cat.emoji}</span>${cat.name}`;
+        tab.onclick=()=>{activeCategory=cat.id;renderAll()};
+        tabs.appendChild(tab);
+      });
+    }
+
+    function renderAll(){
+      const cats=getFavourites();
+      const content=document.getElementById('favsContent');
+      renderTabs();
+
+      if(!cats.length){
+        content.innerHTML=`<div class="no-favs"><div>⭐</div><div>no favourites added yet...</div><div style="font-size:.8rem;margin-top:.5rem">check back soon ✦</div></div>`;
+        return;
+      }
+
+      const toShow=activeCategory==='all'?cats:cats.filter(c=>c.id===activeCategory);
+      content.innerHTML='';
+      toShow.forEach((cat,ci)=>{
+        if(!cat.items||!cat.items.length)return;
+        const section=document.createElement('div');
+        section.className='cat-section';
+        section.style.animationDelay=(ci*.08)+'s';
+        let itemsHtml=cat.items.map((item,ii)=>`
+          <div class="fav-card" style="animation-delay:${(ci*.1+ii*.05)}s">
+            <span class="fav-card-emoji">${item.emoji||'⭐'}</span>
+            <div class="fav-card-name">${item.name}</div>
+            ${item.note?`<div class="fav-card-note">${item.note}</div>`:''}
+          </div>
+        `).join('');
+        section.innerHTML=`
+          <div class="cat-header">
+            <span class="cat-header-emoji">${cat.emoji}</span>
+            <div class="cat-header-title">${cat.name}</div>
+          </div>
+          <div class="fav-grid">${itemsHtml}</div>
+        `;
+        content.appendChild(section);
+      });
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>

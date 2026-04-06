@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>my little corner 🌸</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    body{background-image:radial-gradient(circle at 20% 20%,rgba(242,196,196,.15) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(181,201,177,.12) 0%,transparent 50%)}
+    .petal{position:fixed;pointer-events:none;opacity:0;animation:fall linear infinite;z-index:999}
+    @keyframes fall{0%{transform:translateY(-20px) rotate(0deg);opacity:.6}100%{transform:translateY(110vh) rotate(360deg);opacity:0}}
+    .deco-star{position:fixed;pointer-events:none;opacity:.25;animation:twinkle 3s ease-in-out infinite}
+    @keyframes twinkle{0%,100%{opacity:.15;transform:scale(1)}50%{opacity:.45;transform:scale(1.2)}}
+    header{text-align:center;padding:3rem 1rem 2rem}
+    .site-title{font-family:'Dancing Script',cursive;font-size:clamp(2.8rem,8vw,5.5rem);color:var(--rose);line-height:1.1;text-shadow:2px 3px 0 rgba(217,140,140,.15);animation:fadeDown .8s ease both}
+    .site-subtitle{font-style:italic;font-size:1rem;color:var(--text-light);margin-top:.5rem;animation:fadeDown .8s .2s ease both;opacity:0}
+    .header-deco{display:flex;justify-content:center;gap:.5rem;margin-top:1rem;font-size:1.4rem;animation:fadeDown .8s .4s ease both;opacity:0}
+    @keyframes fadeDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+    .scrapbook-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2rem;max-width:900px;margin:2rem auto 4rem;padding:0 1.5rem}
+    @media(max-width:600px){.scrapbook-grid{grid-template-columns:1fr}}
+    .card{background:var(--paper);border-radius:4px;padding:2rem 1.8rem 2.2rem;position:relative;box-shadow:3px 3px 0 rgba(139,111,94,.08),6px 6px 16px rgba(139,111,94,.08);cursor:pointer;transition:transform .25s ease,box-shadow .25s ease;text-decoration:none;color:inherit;display:block;animation:cardIn .6s ease both;overflow:hidden}
+    .card:nth-child(1){animation-delay:.1s;transform:rotate(-1.2deg)}
+    .card:nth-child(2){animation-delay:.2s;transform:rotate(.8deg)}
+    .card:nth-child(3){animation-delay:.3s;transform:rotate(-.5deg)}
+    .card:nth-child(4){animation-delay:.4s;transform:rotate(1deg)}
+    .card:nth-child(5){animation-delay:.5s;transform:rotate(-.7deg);grid-column:1/-1;max-width:420px;margin:0 auto;width:100%}
+    .card:hover{transform:rotate(0deg) translateY(-6px) scale(1.02)!important;box-shadow:3px 3px 0 rgba(139,111,94,.12),10px 20px 40px rgba(139,111,94,.15);z-index:10}
+    @keyframes cardIn{from{opacity:0;transform:translateY(30px) rotate(0deg)}to{opacity:1}}
+    .card-tape{position:absolute;top:-10px;left:50%;transform:translateX(-50%) rotate(-2deg);width:50px;height:18px;border-radius:2px}
+    .card:nth-child(1) .card-tape{background:rgba(181,201,177,.7)}
+    .card:nth-child(2) .card-tape{background:rgba(201,192,211,.7);transform:translateX(-50%) rotate(1.5deg)}
+    .card:nth-child(3) .card-tape{background:rgba(242,196,196,.7);transform:translateX(-50%) rotate(-1deg)}
+    .card:nth-child(4) .card-tape{background:rgba(232,180,184,.7);transform:translateX(-50%) rotate(2deg)}
+    .card:nth-child(5) .card-tape{background:rgba(181,201,177,.7);transform:translateX(-50%) rotate(-.5deg)}
+    .card-emoji{font-size:3rem;display:block;margin-bottom:1rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.1))}
+    .card-title{font-family:'Dancing Script',cursive;font-size:1.9rem;color:var(--rose);margin-bottom:.5rem}
+    .card-desc{font-size:.88rem;line-height:1.6;color:var(--text-light);font-style:italic}
+    .card-corner{position:absolute;bottom:10px;right:14px;font-size:.75rem;color:var(--dusty-pink);font-family:'Dancing Script',cursive}
+    footer{text-align:center;padding:2rem;font-size:.8rem;color:var(--text-light);font-style:italic}
+    footer a{color:var(--rose);text-decoration:none}
+    .washi{height:26px;background:repeating-linear-gradient(-45deg,rgba(242,196,196,.5),rgba(242,196,196,.5) 8px,rgba(255,255,255,.3) 8px,rgba(255,255,255,.3) 16px);margin:1.5rem 0}
+  </style>
+</head>
+<body>
+  <span class="deco-star" style="top:10%;left:5%;animation-delay:0s">✦</span>
+  <span class="deco-star" style="top:20%;right:8%;animation-delay:1s">✧</span>
+  <span class="deco-star" style="top:60%;left:3%;animation-delay:2s">✦</span>
+  <span class="deco-star" style="top:75%;right:5%;animation-delay:.5s">✧</span>
+
+  <span class="deco-star" style="top:8%;left:25%;animation-delay:1.4s">✦</span>
+  <span class="deco-star" style="top:14%;left:70%;animation-delay:2.2s">✧</span>
+  <span class="deco-star" style="top:30%;left:12%;animation-delay:.8s">✦</span>
+  <span class="deco-star" style="top:35%;right:18%;animation-delay:1.8s">✧</span>
+  <span class="deco-star" style="top:48%;left:22%;animation-delay:2.6s">✦</span>
+  <span class="deco-star" style="top:52%;right:10%;animation-delay:1.1s">✧</span>
+  <span class="deco-star" style="top:68%;left:15%;animation-delay:2.9s">✦</span>
+  <span class="deco-star" style="top:82%;left:35%;animation-delay:1.6s">✧</span>
+  <span class="deco-star" style="top:88%;right:20%;animation-delay:.3s">✦</span>
+
+  <header>
+    <div class="site-title">my little corner</div>
+    <div class="site-subtitle">✨ a pocket of little things about me ✨</div>
+    <div class="header-deco">🌸 🌿 🫧 🌸</div>
+  </header>
+  <div class="washi"></div>
+
+  <main class="scrapbook-grid">
+    <a href="calendar.html" class="card">
+      <div class="card-tape"></div>
+      <span class="card-emoji">📅</span>
+      <div class="card-title">memory calendar</div>
+      <p class="card-desc">little stamps, songs & notes tucked into each day — peek into my world, one date at a time.</p>
+      <div class="card-corner">click to explore ✦</div>
+    </a>
+    <a href="quiz.html" class="card">
+      <div class="card-tape"></div>
+      <span class="card-emoji">🌸</span>
+      <div class="card-title">are we compatible?</div>
+      <p class="card-desc">answer a few little questions and find out how much we have in common. no wrong answers!</p>
+      <div class="card-corner">take the quiz ✦</div>
+    </a>
+    <a href="bag.html" class="card">
+      <div class="card-tape"></div>
+      <span class="card-emoji">👜</span>
+      <div class="card-title">what's in my bag?</div>
+      <p class="card-desc">click the bag open and see everything tumble out — here's what i carry every day.</p>
+      <div class="card-corner">open it ✦</div>
+    </a>
+    <a href="thought.html" class="card">
+      <div class="card-tape"></div>
+      <span class="card-emoji">🌙</span>
+      <div class="card-title">thought of the day</div>
+      <p class="card-desc">one little thought, every day. gone tomorrow but saved in the archive forever.</p>
+      <div class="card-corner">read today's ✦</div>
+    </a>
+    <a href="favourites.html" class="card">
+      <div class="card-tape"></div>
+      <span class="card-emoji">⭐</span>
+      <div class="card-title">my favourites</div>
+      <p class="card-desc">movies, foods, songs & all the things i love — a little collection of my favourite things.</p>
+      <div class="card-corner">browse ✦</div>
+    </a>
+  </main>
+
+  <div class="washi"></div>
+  <footer>made with lots of ♡ · <a href="#" onclick="showAdminPrompt(event)">✦</a></footer>
+
+  <script>
+    const petals=['🌸','🌷','🍃','✿','❀','🌼'];
+    for(let i=0;i<10;i++){
+      const p=document.createElement('div');p.className='petal';
+      p.textContent=petals[Math.floor(Math.random()*petals.length)];
+      p.style.left=Math.random()*100+'vw';
+      p.style.fontSize=(0.8+Math.random()*.7)+'rem';
+      p.style.animationDuration=(9+Math.random()*10)+'s';
+      p.style.animationDelay=(Math.random()*12)+'s';
+      document.body.appendChild(p);
+    }
+    function showAdminPrompt(e){
+      e.preventDefault();
+      const pw=prompt('✦ admin access ✦\nenter password:');
+      if(pw){localStorage.setItem('scrapbook_admin_attempt',pw);window.location.href='admin.html';}
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>compatibility quiz 🌸</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    .container{max-width:580px;margin:0 auto;padding:0 1.2rem 4rem}
+    .intro-section{text-align:center;padding:2rem 0}
+    .intro-section p{font-style:italic;color:var(--text-light);margin-bottom:1.5rem;line-height:1.6}
+    .intro-heart{font-size:4rem;display:block;margin-bottom:1rem;animation:heartBeat 1.5s ease-in-out infinite}
+    @keyframes heartBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+
+    .quiz-card{background:var(--paper);border-radius:8px;padding:2rem;margin:1.5rem 0;box-shadow:3px 3px 0 rgba(139,111,94,.08),6px 6px 16px rgba(139,111,94,.06);position:relative}
+    .quiz-card::before{content:'';position:absolute;top:-8px;left:30px;width:50px;height:16px;background:rgba(201,192,211,.6);border-radius:2px;transform:rotate(-1deg)}
+
+    .progress-bar{height:6px;background:var(--blush);border-radius:4px;margin-bottom:1.5rem;overflow:hidden}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--rose),var(--dusty-pink));border-radius:4px;transition:width .6s ease}
+
+    .q-counter{font-size:.8rem;color:var(--text-light);font-style:italic;margin-bottom:.7rem}
+    .q-text{font-family:'Lora',serif;font-size:1.12rem;line-height:1.65;color:var(--text);margin-bottom:1.5rem}
+
+    .options-grid{display:flex;flex-direction:column;gap:.6rem}
+    .option-btn{background:var(--cream);border:1.5px solid var(--dusty-pink);border-radius:30px;padding:.75rem 1.2rem;cursor:pointer;font-family:'Lora',serif;font-size:.9rem;color:var(--text);text-align:left;transition:all .2s}
+    .option-btn:hover{background:var(--blush);border-color:var(--rose);transform:translateX(5px)}
+    .option-btn.selected{background:var(--rose);border-color:var(--rose);color:white;transform:translateX(5px)}
+
+    .next-btn{margin-top:1.2rem;display:flex;justify-content:flex-end}
+
+    /* Result */
+    .result-card{background:var(--paper);border-radius:8px;padding:2.5rem;text-align:center;box-shadow:3px 3px 0 rgba(139,111,94,.08),10px 10px 30px rgba(139,111,94,.1);display:none;position:relative}
+    .result-card::before{content:'';position:absolute;top:-10px;left:50%;transform:translateX(-50%) rotate(-1deg);width:70px;height:18px;background:rgba(181,201,177,.7);border-radius:3px}
+
+    .result-circle{
+      width:140px;height:140px;border-radius:50%;
+      background:linear-gradient(135deg,var(--blush),var(--rose));
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      margin:0 auto 1.2rem;
+      box-shadow:0 8px 24px rgba(217,140,140,.3);
+      animation:circleIn .6s ease;
+    }
+    @keyframes circleIn{from{transform:scale(.4) rotate(-10deg);opacity:0}70%{transform:scale(1.05)}to{transform:scale(1);opacity:1}}
+    .result-pct{font-family:'Dancing Script',cursive;font-size:3rem;color:white;line-height:1}
+    .result-pct-label{font-size:.7rem;color:rgba(255,255,255,.8);font-style:italic}
+
+    .result-label{font-family:'Dancing Script',cursive;font-size:2rem;color:var(--rose);margin-bottom:.8rem}
+    .result-msg{font-style:italic;color:var(--text-light);line-height:1.7;font-size:.95rem;max-width:380px;margin:0 auto}
+
+    .confetti-petal{position:fixed;pointer-events:none;animation:confettiFall 2s ease forwards}
+    @keyframes confettiFall{0%{transform:translateY(-30px) rotate(0deg);opacity:1}100%{transform:translateY(80vh) rotate(720deg);opacity:0}}
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <a href="index.html" class="back-btn">← back home</a>
+    <div class="page-title">are we compatible?</div>
+    <div class="page-sub">let's find out how much we match ✦</div>
+  </div>
+  <div class="washi lavender"></div>
+
+  <div class="container">
+    <div class="intro-section" id="introSection">
+      <span class="intro-heart">🌸</span>
+      <p>answer a few little questions honestly<br>and i'll tell you exactly how compatible we are!</p>
+      <button class="btn btn-rose" onclick="startQuiz()">let's go! ✦</button>
+    </div>
+
+    <div id="quizSection" style="display:none">
+      <div class="quiz-card">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="q-counter" id="qCounter"></div>
+        <div class="q-text" id="qText"></div>
+        <div class="options-grid" id="optionsGrid"></div>
+        <div class="next-btn">
+          <button class="btn btn-rose" id="nextBtn" onclick="nextQuestion()" style="display:none">next →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="result-circle">
+        <div class="result-pct" id="resultScore"></div>
+        <div class="result-pct-label">compatible</div>
+      </div>
+      <div class="result-label" id="resultLabel"></div>
+      <div class="result-msg" id="resultMsg"></div>
+      <div style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="resetQuiz()">try again ✦</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultQuestions=[
+      {text:"what's your ideal friday night?",options:[
+        {text:"cozy night in, movie & snacks 🏠",points:10},
+        {text:"dinner with close friends 🍜",points:8},
+        {text:"exploring somewhere new 🌙",points:6},
+        {text:"loud party with lots of people 🎉",points:3}
+      ]},
+      {text:"you find a little café you've never been to. you:",options:[
+        {text:"immediately go in and try everything 🍰",points:10},
+        {text:"save it for a cozy day soon 📱",points:8},
+        {text:"mention it to a friend to go together ☕",points:7},
+        {text:"keep walking, you have a routine 🚶",points:3}
+      ]},
+      {text:"pick a cozy afternoon activity:",options:[
+        {text:"reading with a warm drink 📖",points:10},
+        {text:"watching a comfort show 📺",points:8},
+        {text:"baking something 🍞",points:9},
+        {text:"going to the gym 💪",points:4}
+      ]},
+      {text:"how do you feel about thrift shopping?",options:[
+        {text:"literally my favorite hobby 🛍️",points:10},
+        {text:"love it occasionally ✨",points:8},
+        {text:"it's okay, not really my thing 🤷",points:5},
+        {text:"i prefer buying new things 🏪",points:2}
+      ]},
+      {text:"you're making a playlist. what's the vibe?",options:[
+        {text:"dreamy indie / soft pop 🌸",points:10},
+        {text:"nostalgic 2000s bops 💿",points:8},
+        {text:"lofi / ambient study beats 🎧",points:7},
+        {text:"whatever's trending 📊",points:4}
+      ]},
+      {text:"pick a way to show someone you care:",options:[
+        {text:"little gifts and notes 🎁",points:10},
+        {text:"quality time together 💕",points:9},
+        {text:"words of affirmation 💬",points:8},
+        {text:"acts of service 🌟",points:7}
+      ]},
+      {text:"your aesthetic is best described as:",options:[
+        {text:"cottagecore / vintage / soft 🌿",points:10},
+        {text:"y2k / retro / fun 💜",points:7},
+        {text:"dark academia / moody 🕯️",points:6},
+        {text:"clean / minimalist / modern 🤍",points:5}
+      ]}
+    ];
+
+    function getQuestions(){return JSON.parse(localStorage.getItem('scrapbook_quiz_questions')||JSON.stringify(defaultQuestions))}
+
+    let questions=[],currentQ=0,answers=[];
+
+    function startQuiz(){
+      questions=getQuestions();currentQ=0;answers=[];
+      document.getElementById('introSection').style.display='none';
+      document.getElementById('quizSection').style.display='block';
+      renderQuestion();
+    }
+
+    function renderQuestion(){
+      const q=questions[currentQ];
+      const pct=(currentQ/questions.length)*100;
+      document.getElementById('progressFill').style.width=pct+'%';
+      document.getElementById('qCounter').textContent=`question ${currentQ+1} of ${questions.length}`;
+      document.getElementById('qText').textContent=q.text;
+      document.getElementById('nextBtn').style.display='none';
+      const grid=document.getElementById('optionsGrid');
+      grid.innerHTML='';
+      q.options.forEach((opt,i)=>{
+        const btn=document.createElement('button');
+        btn.className='option-btn';btn.textContent=opt.text;
+        btn.onclick=()=>{
+          document.querySelectorAll('.option-btn').forEach(b=>b.classList.remove('selected'));
+          btn.classList.add('selected');
+          answers[currentQ]=opt.points;
+          document.getElementById('nextBtn').style.display='block';
+        };
+        grid.appendChild(btn);
+      });
+    }
+
+    function nextQuestion(){
+      currentQ++;
+      if(currentQ>=questions.length)showResult();
+      else renderQuestion();
+    }
+
+    function showResult(){
+      document.getElementById('quizSection').style.display='none';
+      const card=document.getElementById('resultCard');
+      card.style.display='block';
+      const total=answers.reduce((a,b)=>a+b,0);
+      const maxPossible=questions.length*10;
+      const pct=Math.round((total/maxPossible)*100);
+      document.getElementById('resultScore').textContent=pct+'%';
+      let label,msg;
+      if(pct>=88){
+        label='soulmate energy ✨';
+        msg=`you're ${pct}% compatible with me! we are literally the same person — i feel like i already know you. i think we can be the best of friends!! 🌸`;
+      } else if(pct>=75){
+        label='kindred spirits 🌿';
+        msg=`you're ${pct}% compatible with me! okay we would absolutely vibe. i can picture us actually having a interesting conversation without my social charge running out!!`;
+      } else if(pct>=60){
+        label='pretty compatible! 🌼';
+        msg=`you're ${pct}% compatible with me! we might not be identical but there's definitely some lovely overlap. maybe, we can still be friends!`;
+      } else if(pct>=40){
+        label='opposites attract? 🍂';
+        msg=`you're ${pct}% compatible with me. we're definitely different!! that's a bummer.. `;
+      } else {
+        label='wonderfully different 🌙';
+        msg=`you're ${pct}% compatible with me. okay we might be total opposites, but glad to know this even before having a conversation!!`;
+      }
+      document.getElementById('resultLabel').textContent=label;
+      document.getElementById('resultMsg').textContent=msg;
+      if(pct>=70){
+        for(let i=0;i<24;i++){
+          setTimeout(()=>{
+            const p=document.createElement('div');p.className='confetti-petal';
+            p.textContent=['🌸','🌷','✿','🌼','🍃'][Math.floor(Math.random()*5)];
+            p.style.cssText=`left:${Math.random()*100}vw;top:-30px;font-size:${.8+Math.random()*.6}rem;animation-delay:${Math.random()*.6}s;position:fixed;pointer-events:none;animation:confettiFall 2s ease forwards`;
+            document.body.appendChild(p);setTimeout(()=>p.remove(),2800);
+          },i*80);
+        }
+      }
+    }
+
+    function resetQuiz(){
+      document.getElementById('resultCard').style.display='none';
+      document.getElementById('introSection').style.display='block';
+      document.getElementById('progressFill').style.width='0%';
+    }
+  </script>
+</body>
+</html>

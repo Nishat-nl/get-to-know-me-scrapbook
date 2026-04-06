@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>memory calendar 📅</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    .container{max-width:800px;margin:0 auto;padding:0 1rem 4rem}
+
+    /* Nav */
+    .cal-nav{display:flex;align-items:center;justify-content:center;gap:1.5rem;margin:1.5rem 0 1rem}
+    .cal-nav button{background:none;border:none;cursor:pointer;font-size:1.6rem;color:var(--rose);transition:transform .2s;line-height:1}
+    .cal-nav button:hover{transform:scale(1.3)}
+    .cal-month{font-family:'Dancing Script',cursive;font-size:2rem;color:var(--warm-brown);min-width:210px;text-align:center}
+    .cal-labels{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:.5rem}
+    .cal-labels span{font-size:.72rem;color:var(--text-light);font-style:italic;text-transform:uppercase;letter-spacing:.05em;padding:.3rem 0}
+
+    /* Grid */
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+
+    .cal-day{
+      aspect-ratio:1;border-radius:6px;background:var(--paper);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      cursor:pointer;position:relative;transition:transform .2s,box-shadow .2s;
+      border:1.5px solid transparent;overflow:hidden;min-height:52px;
+    }
+    .cal-day:hover{transform:scale(1.1);box-shadow:0 4px 14px rgba(139,111,94,.2);z-index:5}
+    .cal-day.empty{background:transparent;cursor:default;pointer-events:none}
+    .cal-day.today{border-color:var(--rose);box-shadow:0 0 0 2px rgba(217,140,140,.2)}
+    .cal-day.has-content{background:var(--paper-dark)}
+
+    .day-num{font-size:.7rem;color:var(--text-light);position:absolute;top:3px;left:5px;font-family:'Lora',serif;line-height:1}
+
+    /* Stamp image inside cell */
+    .day-stamp-wrap{
+      position: relative;
+      width: 74%;
+      aspect-ratio: 1;
+      margin-top: 6px;
+    }
+
+    .day-stamp-frame{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .day-stamp-photo{
+      position: absolute;
+      top: 12%;
+      left: 21%;
+      width: 57%;
+      height: 77%;
+      z-index: 2;
+      border-radius: 3px;
+      background: #efe8db;
+    }
+
+    .day-stamp-photo.cover{
+      object-fit: cover;
+    }
+
+    .day-stamp-photo.contain{
+      object-fit: contain;
+    }
+
+
+    /* Spotify pill */
+    .day-spotify{
+      background:#1DB954;color:white;border-radius:8px;
+      padding:2px 5px;font-size:.55rem;margin-top:4px;
+      display:flex;align-items:center;gap:2px;max-width:90%;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+
+    /* Note preview */
+    .day-note-preview{
+      font-size:.58rem;color:var(--text-light);font-style:italic;
+      text-align:center;padding:2px 4px;line-height:1.3;
+      max-width:90%;overflow:hidden;display:-webkit-box;
+      -webkit-line-clamp:2;-webkit-box-orient:vertical;
+      margin-top:4px;
+    }
+
+    /* Empty day flower */
+    .day-empty-emoji{font-size:1rem;opacity:.25;margin-top:4px}
+
+    /* =====================
+       STAMP POPUP — love letter / theme_4 style
+       ===================== */
+    .stamp-overlay{
+      position:fixed;inset:0;
+      background:rgba(100,40,40,.45);
+      backdrop-filter:blur(10px);
+      z-index:600;display:flex;align-items:center;justify-content:center;
+      padding:1.5rem 1rem;opacity:0;pointer-events:none;transition:opacity .4s;
+    }
+    .stamp-overlay.open{opacity:1;pointer-events:all}
+
+    .stamp-popup{
+      position:relative;
+      max-width:400px;width:100%;
+      transform:translateY(30px) scale(.93);
+      transition:transform .45s cubic-bezier(.34,1.46,.64,1);
+    }
+    .stamp-overlay.open .stamp-popup{transform:translateY(0) scale(1)}
+
+    /* ── The red zigzag outer border ── */
+    .stamp-outer{
+      --border-color: #a83232;
+      --inner-color: #f5ede0;
+      position:relative;
+      background: var(--border-color);
+      /* zigzag top & bottom via CSS */
+      padding: 16px 14px;
+      box-shadow: 0 24px 70px rgba(60,10,10,.4), 0 4px 20px rgba(60,10,10,.25);
+    }
+
+    /* Zigzag top edge */
+    .stamp-outer::before{
+      content:'';
+      position:absolute;top:-14px;left:0;right:0;height:14px;
+      background:
+        linear-gradient(135deg, var(--border-color) 33.33%, transparent 33.33%) 0 0,
+        linear-gradient(225deg, var(--border-color) 33.33%, transparent 33.33%) 0 0;
+      background-size:18px 14px;
+      background-repeat:repeat-x;
+    }
+    /* Zigzag bottom edge */
+    .stamp-outer::after{
+      content:'';
+      position:absolute;bottom:-14px;left:0;right:0;height:14px;
+      background:
+        linear-gradient(315deg, var(--border-color) 33.33%, transparent 33.33%) 0 0,
+        linear-gradient( 45deg, var(--border-color) 33.33%, transparent 33.33%) 0 0;
+      background-size:18px 14px;
+      background-repeat:repeat-x;
+    }
+
+    /* ── The cream inner card ── */
+    .stamp-frame{
+      background: #fdf6ee;
+      position:relative;
+      padding: 1.8rem 1.6rem 2rem;
+      overflow:hidden;
+    }
+
+    /* Subtle aged paper texture lines */
+    .stamp-frame::before{
+      content:'';position:absolute;inset:0;
+      background:repeating-linear-gradient(
+        transparent, transparent 28px,
+        rgba(163,80,80,.07) 28px, rgba(163,80,80,.07) 29px
+      );
+      pointer-events:none;
+    }
+
+    /* Close button — top right corner of outer */
+    .stamp-close-btn{
+      position:absolute;top:-18px;right:-8px;z-index:20;
+      background:white;border:none;border-radius:50%;
+      width:34px;height:34px;cursor:pointer;font-size:1rem;
+      box-shadow:0 2px 10px rgba(0,0,0,.2);
+      color:#a83232;font-weight:bold;
+      display:flex;align-items:center;justify-content:center;
+      transition:transform .2s;
+    }
+    .stamp-close-btn:hover{transform:scale(1.15)}
+
+    /* ── Inner content ── */
+    .popup-header-row{
+      display:flex;align-items:flex-start;justify-content:space-between;
+      margin-bottom:1rem;gap:.8rem;
+    }
+
+    .popup-meta{
+      display:flex;flex-direction:column;gap:.35rem;flex:1;
+    }
+
+    .popup-date-label{
+      font-size:.72rem;color:#a83232;
+      font-family:'Lora',serif;font-style:italic;
+      display:flex;align-items:center;gap:.3rem;
+    }
+
+    .popup-title{
+      font-family:'Dancing Script',cursive;
+      font-size:2rem;color:#7a1c1c;
+      line-height:1.15;
+    }
+
+    /* Stamp-framed photos (like the postage stamps in theme_4) */
+    .popup-stamp-photos{
+      display:flex;gap:.5rem;flex-shrink:0;
+    }
+    .popup-stamp-photo-wrap{
+      position:relative;
+      border:3px solid #ccc;
+      box-shadow:inset 0 0 0 2px white, 0 2px 6px rgba(0,0,0,.15);
+      border-radius:2px;
+      background:white;
+      padding:3px;
+    }
+    .popup-stamp-photo-wrap img{
+      display:block;width:72px;height:72px;object-fit:cover;
+      filter:sepia(.08) saturate(.95);
+    }
+    /* Dotted stamp perforation */
+    .popup-stamp-photo-wrap::after{
+      content:'';position:absolute;inset:-1px;
+      border:2px dotted rgba(163,80,80,.45);
+      border-radius:2px;pointer-events:none;
+    }
+
+    /* Divider line */
+    .popup-divider{
+      height:1.5px;
+      background:linear-gradient(90deg,transparent,rgba(168,50,50,.3),transparent);
+      margin:.9rem 0;
+    }
+
+    .popup-note{
+      font-family:'Lora',serif;font-style:italic;
+      line-height:1.75;color:#5a2020;
+      font-size:.92rem;position:relative;z-index:1;
+      text-align:justify;
+    }
+
+    .popup-spotify{
+      border-radius:10px;overflow:hidden;margin-top:.8rem;
+    }
+    .popup-spotify-link{
+      display:flex;align-items:center;justify-content:center;gap:.5rem;
+      padding:.55rem 1.1rem;background:#1DB954;color:white;
+      border-radius:20px;text-decoration:none;font-size:.82rem;
+      font-family:'Lora',serif;margin-top:.8rem;width:fit-content;
+      box-shadow:0 2px 8px rgba(29,185,84,.3);
+    }
+
+    /* Wax seal at bottom — rendered as SVG-style circles */
+    .wax-seal-wrap{
+      text-align:right;margin-top:1.2rem;
+      animation:sealPop .5s .25s ease both;opacity:0;
+      position:relative;z-index:1;
+    }
+    .wax-seal-svg{
+      display:inline-block;
+      width:52px;height:52px;
+      background:radial-gradient(circle at 38% 36%, #e05555 0%, #a32020 55%, #7a1010 100%);
+      border-radius:50%;
+      box-shadow:0 3px 10px rgba(120,10,10,.4), inset 0 1px 3px rgba(255,180,180,.3);
+      position:relative;
+      font-size:1.4rem;
+      display:inline-flex;align-items:center;justify-content:center;
+    }
+    .wax-seal-svg::after{
+      content:'';position:absolute;inset:5px;
+      border-radius:50%;
+      border:1.5px solid rgba(255,200,200,.35);
+    }
+    @keyframes sealPop{
+      0%{opacity:0;transform:scale(.3) rotate(-20deg)}
+      70%{transform:scale(1.08) rotate(3deg)}
+      100%{opacity:1;transform:scale(1) rotate(0deg)}
+    }
+
+    /* Signature line */
+    .popup-sig{
+      font-family:'Dancing Script',cursive;
+      font-size:1.1rem;color:#a83232;
+      text-align:right;margin-top:.6rem;
+      position:relative;z-index:1;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <a href="index.html" class="back-btn">← back home</a>
+    <div class="page-title">memory calendar</div>
+    <div class="page-sub">little moments, tucked into days ✦</div>
+  </div>
+  <div class="washi sage"></div>
+
+  <div class="container">
+    <div class="cal-nav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <div class="cal-month" id="monthLabel"></div>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="cal-labels">
+      <span>sun</span><span>mon</span><span>tue</span>
+      <span>wed</span><span>thu</span><span>fri</span><span>sat</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <!-- Stamp popup — love letter style -->
+  <div class="stamp-overlay" id="stampOverlay" onclick="closeStampIfOutside(event)">
+    <div class="stamp-popup">
+      <div class="stamp-outer">
+        <button class="stamp-close-btn" onclick="closeStamp()">✕</button>
+        <div class="stamp-frame" id="stampContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    let cy=new Date().getFullYear(), cm=new Date().getMonth();
+
+    function getMemories(){return JSON.parse(localStorage.getItem('scrapbook_calendar')||'{}')}
+    function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
+
+    function renderCalendar(){
+      const grid=document.getElementById('calGrid');
+      document.getElementById('monthLabel').textContent=`${MONTHS[cm]} ${cy}`;
+      grid.innerHTML='';
+      const memories=getMemories();
+      const today=new Date();
+      const firstDay=new Date(cy,cm,1).getDay();
+      const daysInMonth=new Date(cy,cm+1,0).getDate();
+
+      for(let i=0;i<firstDay;i++){
+        const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);
+      }
+      for(let d=1;d<=daysInMonth;d++){
+        const key=dk(cy,cm,d);
+        const mem=memories[key];
+        const isToday=today.getFullYear()===cy&&today.getMonth()===cm&&today.getDate()===d;
+        const cell=document.createElement('div');
+        cell.className='cal-day'+(mem?' has-content':'')+(isToday?' today':'');
+
+        const num=document.createElement('div');
+        num.className='day-num';num.textContent=d;cell.appendChild(num);
+
+        if(mem){
+          // Priority: photo > spotify > note > empty
+          const photos=mem.photos&&mem.photos.length?mem.photos:[];
+          if(photos.length>0){
+            const wrap=document.createElement('div');
+            wrap.className='day-stamp-wrap';
+
+            const frame=document.createElement('img');
+            frame.className='day-stamp-frame';
+            frame.src='assets/stamps/red-stamp-frame.png';
+            frame.alt='';
+
+            const photo=document.createElement('img');
+            photo.className='day-stamp-photo';
+            photo.src=photos[0];
+            photo.alt='';
+
+            photo.onload = () => {
+              if (photo.naturalWidth < 220 || photo.naturalHeight < 220) {
+                photo.classList.add('contain');
+              } else {
+                photo.classList.add('cover');
+              }
+            };
+
+            wrap.appendChild(frame);
+            wrap.appendChild(photo);
+            cell.appendChild(wrap);
+          } else if(mem.spotify){
+            const sp=document.createElement('div');
+            sp.className='day-spotify';
+            sp.innerHTML='♪ listening to...';
+            cell.appendChild(sp);
+          } else if(mem.note){
+            const np=document.createElement('div');
+            np.className='day-note-preview';
+            np.textContent=mem.note.substring(0,40);
+            cell.appendChild(np);
+          } else {
+            const em=document.createElement('div');
+            em.className='day-empty-emoji';em.textContent='🌸';
+            cell.appendChild(em);
+          }
+          cell.onclick=()=>openStamp(key,mem);
+        } else {
+          const em=document.createElement('div');
+          em.className='day-empty-emoji';em.textContent='';
+          cell.appendChild(em);
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    function openStamp(key,mem){
+      const [y,m,d]=key.split('-');
+      const dateStr=`${MONTHS[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+      const photos=mem.photos&&mem.photos.length?mem.photos:[];
+
+      // Build stamp photos HTML (up to 2 shown in header row)
+      let stampPhotosHtml='';
+      if(photos.length){
+        stampPhotosHtml='<div class="popup-stamp-photos">';
+        photos.slice(0,2).forEach(p=>{
+          stampPhotosHtml+=`<div class="popup-stamp-photo-wrap"><img src="${p}" alt=""/></div>`;
+        });
+        stampPhotosHtml+='</div>';
+      }
+
+      // Header row: meta (date + title) + stamp photos
+      let html=`
+        <div class="popup-header-row">
+          <div class="popup-meta">
+            <div class="popup-date-label">📅 ${dateStr}</div>
+            ${mem.title?`<div class="popup-title">${mem.title}</div>`:''}
+          </div>
+          ${stampPhotosHtml}
+        </div>`;
+
+      // Extra photos below (3rd, 4th) if any
+      if(photos.length>2){
+        html+='<div style="display:flex;gap:.5rem;margin-bottom:.6rem">';
+        photos.slice(2).forEach(p=>{
+          html+=`<div class="popup-stamp-photo-wrap"><img src="${p}" alt=""/></div>`;
+        });
+        html+='</div>';
+      }
+
+      html+=`<div class="popup-divider"></div>`;
+
+      if(mem.note) html+=`<div class="popup-note">${mem.note.replace(/\n/g,'<br>')}</div>`;
+
+      if(mem.spotify){
+        const trackId=mem.spotify.match(/track\/([a-zA-Z0-9]+)/)?.[1];
+        if(trackId){
+          html+=`<div class="popup-spotify"><iframe src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0" width="100%" height="80" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></div>`;
+        } else {
+          html+=`<a class="popup-spotify-link" href="${mem.spotify}" target="_blank">🎵 listen on spotify</a>`;
+        }
+      }
+
+      html+=`
+        <div class="popup-sig">— nishat 🌸</div>
+        <div class="wax-seal-wrap">
+          <div class="wax-seal-svg">🌸</div>
+        </div>`;
+
+      document.getElementById('stampContent').innerHTML=html;
+      document.getElementById('stampOverlay').classList.add('open');
+    }
+
+    function closeStamp(){document.getElementById('stampOverlay').classList.remove('open')}
+    function closeStampIfOutside(e){if(e.target===document.getElementById('stampOverlay'))closeStamp()}
+    function changeMonth(dir){
+      cm+=dir;
+      if(cm<0){cm=11;cy--}if(cm>11){cm=0;cy++}
+      renderCalendar();
+    }
+    renderCalendar();
+  </script>
+</body>
+</html>
