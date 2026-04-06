@@ -92,17 +92,31 @@
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-title">admin portal ✦</div>
-    <div class="login-sub">sign in with your Netlify Identity email 🌸</div>
+    <div class="login-sub" id="loginSub">sign in with your Netlify Identity email 🌸</div>
 
-    <div class="form-group">
-      <input type="email" id="emailInput" placeholder="your email" onkeydown="if(event.key==='Enter')login()"/>
+    <div id="normalLoginFields">
+      <div class="form-group">
+        <input type="email" id="emailInput" placeholder="your email" onkeydown="if(event.key==='Enter')login()"/>
+      </div>
+
+      <div class="form-group">
+        <input type="password" id="passwordInput" placeholder="your password" onkeydown="if(event.key==='Enter')login()"/>
+      </div>
+
+      <button class="btn btn-rose" onclick="login()" style="width:100%">log in ✦</button>
     </div>
 
-    <div class="form-group">
-      <input type="password" id="passwordInput" placeholder="your password" onkeydown="if(event.key==='Enter')login()"/>
-    </div>
+    <div id="passwordSetupFields" style="display:none">
+      <div class="form-group">
+        <input type="password" id="newPasswordInput" placeholder="set a new password"/>
+      </div>
 
-    <button class="btn btn-rose" onclick="login()" style="width:100%">log in ✦</button>
+      <div class="form-group">
+        <input type="password" id="confirmPasswordInput" placeholder="confirm new password"/>
+      </div>
+
+      <button class="btn btn-rose" onclick="finishPasswordSetup()" style="width:100%">save password ✦</button>
+    </div>
 
     <div class="error-msg" id="errorMsg">login failed 🌿</div>
 
@@ -217,14 +231,16 @@
     login as identityLogin,
     getUser,
     logout as identityLogout,
-    handleAuthCallback
+    handleAuthCallback,
+    recoverPassword
   } from 'https://esm.sh/@netlify/identity';
 
   window.netlifyIdentityApi = {
     identityLogin,
     getUser,
     identityLogout,
-    handleAuthCallback
+    handleAuthCallback,
+    recoverPassword
   };
 
   window.dispatchEvent(new Event('netlify-identity-ready'));
@@ -232,6 +248,7 @@
 
 <script>
   let adminInitialized = false;
+  let pendingRecoveryToken = null;
 
   function waitForIdentityApi(){
     if(window.netlifyIdentityApi) return Promise.resolve(window.netlifyIdentityApi);
@@ -240,19 +257,36 @@
     });
   }
 
+  function resetAuthMessages(){
+    const error=document.getElementById('errorMsg');
+    error.style.display='none';
+    error.textContent='login failed 🌿';
+  }
+
   function showLogin(message=''){
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('adminScreen').classList.remove('visible');
+    document.getElementById('normalLoginFields').style.display='block';
+    document.getElementById('passwordSetupFields').style.display='none';
+    document.getElementById('loginSub').textContent='sign in with your Netlify Identity email 🌸';
 
-    const error=document.getElementById('errorMsg');
+    resetAuthMessages();
+
     const status=document.getElementById('authStatus');
+    status.textContent = message || 'invite-only login is enabled. use your invited email.';
+  }
 
-    error.style.display='none';
-    if(message){
-      status.textContent=message;
-    } else {
-      status.textContent='invite-only login is enabled. use your invited email.';
-    }
+  function showPasswordSetup(message='set your password to finish admin access ✦'){
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('adminScreen').classList.remove('visible');
+    document.getElementById('normalLoginFields').style.display='none';
+    document.getElementById('passwordSetupFields').style.display='block';
+    document.getElementById('loginSub').textContent='finish setting your password 🌸';
+
+    resetAuthMessages();
+
+    const status=document.getElementById('authStatus');
+    status.textContent = message;
   }
 
   function showAdmin(){
@@ -284,7 +318,6 @@
     try{
       const api = await waitForIdentityApi();
       await api.identityLogin(email, password);
-      status.textContent='logged in ✦';
       document.getElementById('passwordInput').value='';
       showAdmin();
     }catch(err){
@@ -292,6 +325,59 @@
       error.textContent='login failed 🌿 check your email/password';
       error.style.display='block';
       status.textContent='invite-only login is enabled. use your invited email.';
+    }
+  }
+
+  async function finishPasswordSetup(){
+    const pw=document.getElementById('newPasswordInput').value;
+    const confirm=document.getElementById('confirmPasswordInput').value;
+    const error=document.getElementById('errorMsg');
+    const status=document.getElementById('authStatus');
+
+    error.style.display='none';
+
+    if(!pendingRecoveryToken){
+      error.textContent='missing recovery token 🌿 request a new password email';
+      error.style.display='block';
+      return;
+    }
+
+    if(!pw || !confirm){
+      error.textContent='enter your new password twice 🌿';
+      error.style.display='block';
+      return;
+    }
+
+    if(pw.length < 8){
+      error.textContent='use at least 8 characters 🌿';
+      error.style.display='block';
+      return;
+    }
+
+    if(pw !== confirm){
+      error.textContent='passwords do not match 🌿';
+      error.style.display='block';
+      return;
+    }
+
+    status.textContent='saving your password...';
+
+    try{
+      const api = await waitForIdentityApi();
+      await api.recoverPassword(pendingRecoveryToken, pw);
+
+      pendingRecoveryToken = null;
+      document.getElementById('newPasswordInput').value='';
+      document.getElementById('confirmPasswordInput').value='';
+
+      history.replaceState({}, '', 'admin.html');
+      status.textContent='password saved ✦ please log in';
+      showLogin('password saved ✦ now log in with your email and new password');
+    }catch(err){
+      console.error(err);
+      error.textContent='could not save password 🌿 request a fresh password email';
+      error.style.display='block';
+      status.textContent='try again with a fresh recovery link.';
     }
   }
 
@@ -305,6 +391,11 @@
     location.href='admin.html';
   }
 
+  function getHashParams(){
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    return new URLSearchParams(hash);
+  }
+
   async function bootAdminAuth(){
     const status=document.getElementById('authStatus');
     const error=document.getElementById('errorMsg');
@@ -313,6 +404,21 @@
 
     try{
       const api = await waitForIdentityApi();
+      const params = getHashParams();
+
+      const recoveryToken = params.get('recovery_token');
+      if(recoveryToken){
+        pendingRecoveryToken = recoveryToken;
+        showPasswordSetup('set a new password to finish your admin setup ✦');
+        return;
+      }
+
+      const inviteToken = params.get('invite_token');
+      if(inviteToken){
+        pendingRecoveryToken = inviteToken;
+        showPasswordSetup('set a password to activate your invited admin account ✦');
+        return;
+      }
 
       const callbackResult = await api.handleAuthCallback();
 
