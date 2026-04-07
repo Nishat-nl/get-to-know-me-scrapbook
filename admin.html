@@ -8,6 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
   <script src="bag_images.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <style>
     /* ★ CHANGE PASSWORD BELOW IN JS ★ */
     .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
@@ -104,6 +106,9 @@
       </div>
 
       <button class="btn btn-rose" onclick="login()" style="width:100%">log in ✦</button>
+      <button class="btn btn-outline" onclick="signupFirstAdmin()" style="width:100%;margin-top:.5rem">
+        create first admin ✦
+      </button>
     </div>
 
     <div id="passwordSetupFields" style="display:none">
@@ -226,67 +231,15 @@
 
 <div class="toast" id="toast"></div>
 
-<script type="module">
-  import {
-    login as identityLogin,
-    getUser,
-    logout as identityLogout,
-    handleAuthCallback,
-    recoverPassword
-  } from 'https://esm.sh/@netlify/identity';
-
-  window.netlifyIdentityApi = {
-    identityLogin,
-    getUser,
-    identityLogout,
-    handleAuthCallback,
-    recoverPassword
-  };
-
-  window.dispatchEvent(new Event('netlify-identity-ready'));
-</script>
-
 <script>
   let adminInitialized = false;
-  let pendingRecoveryToken = null;
-
-  function waitForIdentityApi(){
-    if(window.netlifyIdentityApi) return Promise.resolve(window.netlifyIdentityApi);
-    return new Promise(resolve=>{
-      window.addEventListener('netlify-identity-ready', ()=>resolve(window.netlifyIdentityApi), { once:true });
-    });
-  }
-
-  function resetAuthMessages(){
-    const error=document.getElementById('errorMsg');
-    error.style.display='none';
-    error.textContent='login failed 🌿';
-  }
 
   function showLogin(message=''){
     document.getElementById('loginScreen').style.display='flex';
     document.getElementById('adminScreen').classList.remove('visible');
-    document.getElementById('normalLoginFields').style.display='block';
-    document.getElementById('passwordSetupFields').style.display='none';
-    document.getElementById('loginSub').textContent='sign in with your Netlify Identity email 🌸';
-
-    resetAuthMessages();
-
-    const status=document.getElementById('authStatus');
-    status.textContent = message || 'invite-only login is enabled. use your invited email.';
-  }
-
-  function showPasswordSetup(message='set your password to finish admin access ✦'){
-    document.getElementById('loginScreen').style.display='flex';
-    document.getElementById('adminScreen').classList.remove('visible');
-    document.getElementById('normalLoginFields').style.display='none';
-    document.getElementById('passwordSetupFields').style.display='block';
-    document.getElementById('loginSub').textContent='finish setting your password 🌸';
-
-    resetAuthMessages();
-
-    const status=document.getElementById('authStatus');
-    status.textContent = message;
+    document.getElementById('errorMsg').style.display='none';
+    document.getElementById('authStatus').textContent =
+      message || 'log in with your Supabase admin email 🌸';
   }
 
   function showAdmin(){
@@ -300,146 +253,81 @@
   }
 
   async function login(){
-    const email=document.getElementById('emailInput').value.trim();
-    const password=document.getElementById('passwordInput').value;
+    const email = document.getElementById('emailInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
+    const error = document.getElementById('errorMsg');
+    const status = document.getElementById('authStatus');
+
+    error.style.display = 'none';
 
     if(!email || !password){
-      const error=document.getElementById('errorMsg');
-      error.textContent='enter your email and password 🌿';
-      error.style.display='block';
+      error.textContent = 'enter your email and password 🌿';
+      error.style.display = 'block';
       return;
     }
 
-    const error=document.getElementById('errorMsg');
-    const status=document.getElementById('authStatus');
-    error.style.display='none';
-    status.textContent='logging in...';
+    status.textContent = 'logging in...';
 
-    try{
-      const api = await waitForIdentityApi();
-      await api.identityLogin(email, password);
-      document.getElementById('passwordInput').value='';
-      showAdmin();
-    }catch(err){
-      console.error(err);
-      error.textContent='login failed 🌿 check your email/password';
-      error.style.display='block';
-      status.textContent='invite-only login is enabled. use your invited email.';
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(signInError){
+      console.error(signInError);
+      error.textContent = 'login failed 🌿';
+      error.style.display = 'block';
+      status.textContent = 'try again';
+      return;
     }
+
+    document.getElementById('passwordInput').value = '';
+    showAdmin();
   }
 
-  async function finishPasswordSetup(){
-    const pw=document.getElementById('newPasswordInput').value;
-    const confirm=document.getElementById('confirmPasswordInput').value;
-    const error=document.getElementById('errorMsg');
-    const status=document.getElementById('authStatus');
+  async function signupFirstAdmin(){
+    const email = document.getElementById('emailInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
+    const error = document.getElementById('errorMsg');
+    const status = document.getElementById('authStatus');
 
-    error.style.display='none';
+    error.style.display = 'none';
 
-    if(!pendingRecoveryToken){
-      error.textContent='missing recovery token 🌿 request a new password email';
-      error.style.display='block';
+    if(!email || !password){
+      error.textContent = 'enter email and password first 🌿';
+      error.style.display = 'block';
       return;
     }
 
-    if(!pw || !confirm){
-      error.textContent='enter your new password twice 🌿';
-      error.style.display='block';
+    status.textContent = 'creating admin account...';
+
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password
+    });
+
+    if(signUpError){
+      console.error(signUpError);
+      error.textContent = signUpError.message || 'could not create account 🌿';
+      error.style.display = 'block';
+      status.textContent = 'try again';
       return;
     }
 
-    if(pw.length < 8){
-      error.textContent='use at least 8 characters 🌿';
-      error.style.display='block';
-      return;
-    }
-
-    if(pw !== confirm){
-      error.textContent='passwords do not match 🌿';
-      error.style.display='block';
-      return;
-    }
-
-    status.textContent='saving your password...';
-
-    try{
-      const api = await waitForIdentityApi();
-      await api.recoverPassword(pendingRecoveryToken, pw);
-
-      pendingRecoveryToken = null;
-      document.getElementById('newPasswordInput').value='';
-      document.getElementById('confirmPasswordInput').value='';
-
-      history.replaceState({}, '', 'admin.html');
-      status.textContent='password saved ✦ please log in';
-      showLogin('password saved ✦ now log in with your email and new password');
-    }catch(err){
-      console.error(err);
-      error.textContent='could not save password 🌿 request a fresh password email';
-      error.style.display='block';
-      status.textContent='try again with a fresh recovery link.';
-    }
+    status.textContent = 'account created ✦ now log in';
   }
 
   async function logout(){
-    try{
-      const api = await waitForIdentityApi();
-      await api.identityLogout();
-    }catch(err){
-      console.error(err);
-    }
-    location.href='admin.html';
-  }
-
-  function getHashParams(){
-    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
-    return new URLSearchParams(hash);
+    await supabase.auth.signOut();
+    location.href = 'admin.html';
   }
 
   async function bootAdminAuth(){
-    const status=document.getElementById('authStatus');
-    const error=document.getElementById('errorMsg');
-
-    showLogin('checking login...');
-
-    try{
-      const api = await waitForIdentityApi();
-      const params = getHashParams();
-
-      const recoveryToken = params.get('recovery_token');
-      if(recoveryToken){
-        pendingRecoveryToken = recoveryToken;
-        showPasswordSetup('set a new password to finish your admin setup ✦');
-        return;
-      }
-
-      const inviteToken = params.get('invite_token');
-      if(inviteToken){
-        pendingRecoveryToken = inviteToken;
-        showPasswordSetup('set a password to activate your invited admin account ✦');
-        return;
-      }
-
-      const callbackResult = await api.handleAuthCallback();
-
-      if(callbackResult){
-        history.replaceState({}, '', 'admin.html');
-      }
-
-      const user = await api.getUser();
-
-      if(user){
-        showAdmin();
-        return;
-      }
-
+    const { data } = await supabase.auth.getUser();
+    if(data.user){
+      showAdmin();
+    } else {
       showLogin();
-    }catch(err){
-      console.error(err);
-      error.textContent='could not complete login callback 🌿';
-      error.style.display='block';
-      status.textContent='try opening admin.html again.';
-      showLogin('try opening admin.html again.');
     }
   }
 
