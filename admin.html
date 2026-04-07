@@ -366,9 +366,54 @@
   }
 
   // ============ CALENDAR ============
-  let pendingPhotos=[]; // base64 strings
-  function getMemories(){return JSON.parse(localStorage.getItem('scrapbook_calendar')||'{}')}
-  function saveMemories(d){localStorage.setItem('scrapbook_calendar',JSON.stringify(d))}
+  let pendingPhotos=[]; // base64 strings or existing public URLs
+
+  async function getMemories(){
+    const { data, error } = await window.supabaseClient
+      .from('calendar_entries')
+      .select('*')
+      .order('entry_date', { ascending: false });
+
+    if(error){
+      console.error(error);
+      return {};
+    }
+
+    const out = {};
+    for(const row of data){
+      out[row.entry_date] = {
+        title: row.title || '',
+        note: row.note || '',
+        spotify: row.spotify || '',
+        photos: row.photos || []
+      };
+    }
+    return out;
+  }
+
+  async function upsertMemory(date, entry){
+    const { error } = await window.supabaseClient
+      .from('calendar_entries')
+      .upsert({
+        entry_date: date,
+        title: entry.title || null,
+        note: entry.note || null,
+        spotify: entry.spotify || null,
+        photos: entry.photos || [],
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'entry_date' });
+
+    if(error) throw error;
+  }
+
+  async function deleteMemoryRow(date){
+    const { error } = await window.supabaseClient
+      .from('calendar_entries')
+      .delete()
+      .eq('entry_date', date);
+
+    if(error) throw error;
+  }
 
   function handlePhotoUpload(e){
     const files=[...e.target.files];
@@ -396,25 +441,61 @@
 
   function todayKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 
-  function saveMemory(){
+  async function saveMemory(){
     const date=document.getElementById('calDate').value;
     if(!date){alert('please pick a date ✦');return}
-    const memories=getMemories();
-    const entry={
-      title:document.getElementById('calTitle').value.trim(),
-      photos:pendingPhotos.slice(),
-      spotify:document.getElementById('calSpotify').value.trim(),
-      note:document.getElementById('calNote').value.trim()
-    };
-    // Preserve existing photos if editing
-    if(memories[date]&&memories[date].photos&&pendingPhotos.length===0){
-      entry.photos=memories[date].photos;
+
+    try{
+      const existingMemories = await getMemories();
+      const existingPhotos =
+        existingMemories[date] && existingMemories[date].photos && pendingPhotos.length===0
+          ? existingMemories[date].photos
+          : [];
+
+      const uploadedUrls = [];
+
+      for(const item of pendingPhotos){
+        if(typeof item === 'string' && item.startsWith('http')){
+          uploadedUrls.push(item);
+          continue;
+        }
+
+        if(typeof item === 'string' && item.startsWith('data:')){
+          const blob = await (await fetch(item)).blob();
+          const ext = blob.type.split('/')[1] || 'png';
+          const path = `calendar/${date}/${crypto.randomUUID()}.${ext}`;
+
+          const { error: uploadError } = await window.supabaseClient
+            .storage
+            .from('scrapbook-images')
+            .upload(path, blob, { upsert: false });
+
+          if(uploadError) throw uploadError;
+
+          const { data: publicData } = window.supabaseClient
+            .storage
+            .from('scrapbook-images')
+            .getPublicUrl(path);
+
+          uploadedUrls.push(publicData.publicUrl);
+        }
+      }
+
+      const entry = {
+        title:document.getElementById('calTitle').value.trim(),
+        photos: uploadedUrls.length ? uploadedUrls : existingPhotos,
+        spotify:document.getElementById('calSpotify').value.trim(),
+        note:document.getElementById('calNote').value.trim()
+      };
+
+      await upsertMemory(date, entry);
+      await renderMemoryList();
+      clearCalForm();
+      toast('memory saved! 🌸');
+    }catch(err){
+      console.error(err);
+      alert('could not save memory');
     }
-    memories[date]=entry;
-    saveMemories(memories);
-    renderMemoryList();
-    clearCalForm();
-    toast('memory saved! 🌸');
   }
 
   function clearCalForm(){
@@ -425,8 +506,9 @@
     renderPhotoPreviews();
   }
 
-  function editMemory(key){
-    const memories=getMemories();const m=memories[key];
+  async function editMemory(key){
+    const memories = await getMemories();
+    const m=memories[key];
     document.getElementById('calDate').value=key;
     document.getElementById('calTitle').value=m.title||'';
     document.getElementById('calSpotify').value=m.spotify||'';
@@ -436,15 +518,29 @@
     window.scrollTo({top:0,behavior:'smooth'});
     toast('editing '+key+' ✏️');
   }
-  function deleteMemory(key){
-    if(!confirm('delete this memory?'))return;
-    const memories=getMemories();delete memories[key];
-    saveMemories(memories);renderMemoryList();toast('deleted 🌿');
+
+  async function deleteMemory(key){
+    if(!confirm('delete this memory?')) return;
+    try{
+      await deleteMemoryRow(key);
+      await renderMemoryList();
+      toast('deleted 🌿');
+    }catch(err){
+      console.error(err);
+      alert('could not delete memory');
+    }
   }
-  function renderMemoryList(){
-    const memories=getMemories();const list=document.getElementById('memoryList');
+
+  async function renderMemoryList(){
+    const memories = await getMemories();
+    const list=document.getElementById('memoryList');
     const entries=Object.entries(memories).sort(([a],[b])=>b.localeCompare(a));
-    if(!entries.length){list.innerHTML='<div style="font-style:italic;color:var(--text-light);font-size:.85rem">no memories yet ✦</div>';return}
+
+    if(!entries.length){
+      list.innerHTML='<div style="font-style:italic;color:var(--text-light);font-size:.85rem">no memories yet ✦</div>';
+      return;
+    }
+
     list.innerHTML=entries.map(([key,m])=>`
       <div class="list-item">
         <span>${key}${m.title?' — '+m.title:''} ${(m.photos&&m.photos.length)?'📷':''} ${m.spotify?'🎵':''} ${m.note?'📝':''}</span>
@@ -646,10 +742,13 @@
     saveFavsData(favs);toast('favourites saved! ⭐');
   }
 
-  function initAdmin(){
+  async function initAdmin(){
     document.getElementById('calDate').value=todayKey();
-    renderMemoryList();renderQuestionsEditor();renderBagsEditor();
-    renderThoughtArchiveAdmin();renderFavsEditor();
+    await renderMemoryList();
+    renderQuestionsEditor();
+    renderBagsEditor();
+    renderThoughtArchiveAdmin();
+    renderFavsEditor();
   }
 </script>
 </body>

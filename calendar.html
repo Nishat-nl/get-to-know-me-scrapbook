@@ -7,6 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
   <style>
     .container{max-width:800px;margin:0 auto;padding:0 1rem 4rem}
 
@@ -315,21 +319,46 @@
     const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
     let cy=new Date().getFullYear(), cm=new Date().getMonth();
 
-    function getMemories(){return JSON.parse(localStorage.getItem('scrapbook_calendar')||'{}')}
+    async function getMemories(){
+      const { data, error } = await window.supabaseClient
+        .from('calendar_entries')
+        .select('*')
+        .order('entry_date', { ascending: true });
+
+      if(error){
+        console.error(error);
+        return {};
+      }
+
+      const out = {};
+      for(const row of data){
+        out[row.entry_date] = {
+          title: row.title || '',
+          note: row.note || '',
+          spotify: row.spotify || '',
+          photos: row.photos || []
+        };
+      }
+      return out;
+    }
+
     function dk(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
 
-    function renderCalendar(){
+    async function renderCalendar(){
       const grid=document.getElementById('calGrid');
       document.getElementById('monthLabel').textContent=`${MONTHS[cm]} ${cy}`;
       grid.innerHTML='';
-      const memories=getMemories();
+      const memories = await getMemories();
       const today=new Date();
       const firstDay=new Date(cy,cm,1).getDay();
       const daysInMonth=new Date(cy,cm+1,0).getDate();
 
       for(let i=0;i<firstDay;i++){
-        const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);
+        const e=document.createElement('div');
+        e.className='cal-day empty';
+        grid.appendChild(e);
       }
+
       for(let d=1;d<=daysInMonth;d++){
         const key=dk(cy,cm,d);
         const mem=memories[key];
@@ -338,10 +367,11 @@
         cell.className='cal-day'+(mem?' has-content':'')+(isToday?' today':'');
 
         const num=document.createElement('div');
-        num.className='day-num';num.textContent=d;cell.appendChild(num);
+        num.className='day-num';
+        num.textContent=d;
+        cell.appendChild(num);
 
         if(mem){
-          // Priority: photo > spotify > note > empty
           const photos=mem.photos&&mem.photos.length?mem.photos:[];
           if(photos.length>0){
             const wrap=document.createElement('div');
@@ -380,15 +410,19 @@
             cell.appendChild(np);
           } else {
             const em=document.createElement('div');
-            em.className='day-empty-emoji';em.textContent='🌸';
+            em.className='day-empty-emoji';
+            em.textContent='🌸';
             cell.appendChild(em);
           }
+
           cell.onclick=()=>openStamp(key,mem);
         } else {
           const em=document.createElement('div');
-          em.className='day-empty-emoji';em.textContent='';
+          em.className='day-empty-emoji';
+          em.textContent='';
           cell.appendChild(em);
         }
+
         grid.appendChild(cell);
       }
     }
@@ -429,7 +463,7 @@
 
       html+=`<div class="popup-divider"></div>`;
 
-      if(mem.note) html+=`<div class="popup-note">${mem.note.replace(/\n/g,'<br>')}</div>`;
+      if(mem.note) html+=`<div class="popup-note">${String(mem.note).replace(/\n/g,'<br>')}</div>`;
 
       if(mem.spotify){
         const trackId=mem.spotify.match(/track\/([a-zA-Z0-9]+)/)?.[1];
@@ -452,11 +486,13 @@
 
     function closeStamp(){document.getElementById('stampOverlay').classList.remove('open')}
     function closeStampIfOutside(e){if(e.target===document.getElementById('stampOverlay'))closeStamp()}
-    function changeMonth(dir){
+    async function changeMonth(dir){
       cm+=dir;
-      if(cm<0){cm=11;cy--}if(cm>11){cm=0;cy++}
-      renderCalendar();
+      if(cm<0){cm=11;cy--}
+      if(cm>11){cm=0;cy++}
+      await renderCalendar();
     }
+
     renderCalendar();
   </script>
 </body>
