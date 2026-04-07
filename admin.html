@@ -94,39 +94,25 @@
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-title">admin portal ✦</div>
-    <div class="login-sub" id="loginSub">sign in with your Netlify Identity email 🌸</div>
+    <div class="login-sub">sign in with your Supabase admin email 🌸</div>
 
-    <div id="normalLoginFields">
-      <div class="form-group">
-        <input type="email" id="emailInput" placeholder="your email" onkeydown="if(event.key==='Enter')login()"/>
-      </div>
-
-      <div class="form-group">
-        <input type="password" id="passwordInput" placeholder="your password" onkeydown="if(event.key==='Enter')login()"/>
-      </div>
-
-      <button class="btn btn-rose" onclick="login()" style="width:100%">log in ✦</button>
-      <button class="btn btn-outline" onclick="signupFirstAdmin()" style="width:100%;margin-top:.5rem">
-        create first admin ✦
-      </button>
+    <div class="form-group">
+      <input type="email" id="emailInput" placeholder="your email" onkeydown="if(event.key==='Enter')login()"/>
     </div>
 
-    <div id="passwordSetupFields" style="display:none">
-      <div class="form-group">
-        <input type="password" id="newPasswordInput" placeholder="set a new password"/>
-      </div>
-
-      <div class="form-group">
-        <input type="password" id="confirmPasswordInput" placeholder="confirm new password"/>
-      </div>
-
-      <button class="btn btn-rose" onclick="finishPasswordSetup()" style="width:100%">save password ✦</button>
+    <div class="form-group">
+      <input type="password" id="passwordInput" placeholder="your password" onkeydown="if(event.key==='Enter')login()"/>
     </div>
+
+    <button class="btn btn-rose" onclick="login()" style="width:100%">log in ✦</button>
+    <button class="btn btn-outline" onclick="signupFirstAdmin()" style="width:100%;margin-top:.5rem">
+      create first admin ✦
+    </button>
 
     <div class="error-msg" id="errorMsg">login failed 🌿</div>
 
     <p id="authStatus" style="font-size:.8rem;color:var(--text-light);font-style:italic;margin-top:.8rem">
-      invite-only login is enabled. use your invited email.
+      log in with your Supabase admin email 🌸
     </p>
 
     <br><a href="index.html" style="font-size:.8rem;color:var(--text-light);font-style:italic">← back to site</a>
@@ -268,21 +254,28 @@
 
     status.textContent = 'logging in...';
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try{
+      if(typeof supabase === 'undefined'){
+        throw new Error('Supabase client not loaded');
+      }
 
-    if(signInError){
-      console.error(signInError);
-      error.textContent = 'login failed 🌿';
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if(signInError){
+        throw signInError;
+      }
+
+      document.getElementById('passwordInput').value = '';
+      showAdmin();
+    }catch(err){
+      console.error(err);
+      error.textContent = err.message || 'login failed 🌿';
       error.style.display = 'block';
       status.textContent = 'try again';
-      return;
     }
-
-    document.getElementById('passwordInput').value = '';
-    showAdmin();
   }
 
   async function signupFirstAdmin(){
@@ -301,33 +294,64 @@
 
     status.textContent = 'creating admin account...';
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password
-    });
+    try{
+      if(typeof supabase === 'undefined'){
+        throw new Error('Supabase client not loaded');
+      }
 
-    if(signUpError){
-      console.error(signUpError);
-      error.textContent = signUpError.message || 'could not create account 🌿';
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if(signUpError){
+        throw signUpError;
+      }
+
+      console.log('signup result:', data);
+      status.textContent = 'account created ✦ now log in';
+    }catch(err){
+      console.error(err);
+      error.textContent = err.message || 'could not create account 🌿';
       error.style.display = 'block';
       status.textContent = 'try again';
-      return;
     }
-
-    status.textContent = 'account created ✦ now log in';
   }
 
   async function logout(){
-    await supabase.auth.signOut();
+    try{
+      if(typeof supabase !== 'undefined'){
+        await supabase.auth.signOut();
+      }
+    }catch(err){
+      console.error(err);
+    }
     location.href = 'admin.html';
   }
 
   async function bootAdminAuth(){
-    const { data } = await supabase.auth.getUser();
-    if(data.user){
-      showAdmin();
-    } else {
-      showLogin();
+    try{
+      if(typeof supabase === 'undefined'){
+        throw new Error('Supabase client not loaded');
+      }
+
+      const { data, error } = await supabase.auth.getUser();
+
+      if(error){
+        throw error;
+      }
+
+      if(data.user){
+        showAdmin();
+      } else {
+        showLogin();
+      }
+    }catch(err){
+      console.error(err);
+      showLogin('Supabase is not loading correctly 🌿');
+      const error=document.getElementById('errorMsg');
+      error.textContent = err.message || 'auth setup error';
+      error.style.display = 'block';
     }
   }
 
