@@ -255,11 +255,11 @@
     status.textContent = 'logging in...';
 
     try{
-      if(typeof supabase === 'undefined'){
+      if(!window.supabaseClient){
         throw new Error('Supabase client not loaded');
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await window.supabaseClient.auth.signInWithPassword({
         email,
         password
       });
@@ -295,11 +295,11 @@
     status.textContent = 'creating admin account...';
 
     try{
-      if(typeof supabase === 'undefined'){
+      if(!window.supabaseClient){
         throw new Error('Supabase client not loaded');
       }
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await window.supabaseClient.auth.signUp({
         email,
         password
       });
@@ -320,8 +320,8 @@
 
   async function logout(){
     try{
-      if(typeof supabase !== 'undefined'){
-        await supabase.auth.signOut();
+      if(window.supabaseClient){
+        await window.supabaseClient.auth.signOut();
       }
     }catch(err){
       console.error(err);
@@ -331,11 +331,11 @@
 
   async function bootAdminAuth(){
     try{
-      if(typeof supabase === 'undefined'){
+      if(!window.supabaseClient){
         throw new Error('Supabase client not loaded');
       }
 
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await window.supabaseClient.auth.getUser();
 
       if(error){
         throw error;
