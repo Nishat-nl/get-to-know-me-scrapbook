@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <style>
     .container{max-width:600px;margin:0 auto;padding:0 1.2rem 4rem}
     .thought-card{
@@ -63,23 +66,65 @@
   </div>
   <script>
     const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-    function todayKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-    function getThoughts(){return JSON.parse(localStorage.getItem('scrapbook_thoughts')||'{}')}
-    function formatDate(key){const[y,m,d]=key.split('-');return `${MONTHS[parseInt(m)-1]} ${parseInt(d)}, ${y}`}
-    function renderToday(){
-      const thoughts=getThoughts();const key=todayKey();const today=thoughts[key];
+
+    async function loadSiteKV(key, fallback){
+      const { data, error } = await window.supabaseClient
+        .from('site_kv')
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+
+      if(error){
+        console.error(error);
+        return fallback;
+      }
+
+      return data?.value ?? fallback;
+    }
+
+    function todayKey(){
+      const d=new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    async function getThoughts(){
+      return await loadSiteKV('thoughts', {});
+    }
+
+    function formatDate(key){
+      const[y,m,d]=key.split('-');
+      return `${MONTHS[parseInt(m)-1]} ${parseInt(d)}, ${y}`;
+    }
+
+    async function renderToday(){
+      const thoughts=await getThoughts();
+      const key=todayKey();
+      const today=thoughts[key];
       const c=document.getElementById('todayThought');
-      if(!today){c.innerHTML=`<div class="no-thought"><div style="font-size:3rem;margin-bottom:1rem">🌙</div><div>no thought yet for today...</div><div style="font-size:.8rem;margin-top:.5rem">check back later ✦</div></div>`;return}
+
+      if(!today){
+        c.innerHTML=`<div class="no-thought"><div style="font-size:3rem;margin-bottom:1rem">🌙</div><div>I'm thoughtless today</div><div style="font-size:.8rem;margin-top:.5rem">check back later ✦</div></div>`;
+        return;
+      }
+
       c.innerHTML=`<div class="thought-card"><div class="thought-date">📅 ${formatDate(key)}</div><div class="thought-text">${today.text}</div>${today.mood?`<div class="thought-mood">${today.mood}</div>`:''}<div class="thought-sig">— nishat 🌸</div></div>`;
     }
-    function renderArchive(){
-      const thoughts=getThoughts();const todayK=todayKey();
+
+    async function renderArchive(){
+      const thoughts=await getThoughts();
+      const todayK=todayKey();
       const list=document.getElementById('archiveList');
       const past=Object.entries(thoughts).filter(([k])=>k!==todayK).sort(([a],[b])=>b.localeCompare(a));
-      if(!past.length){list.innerHTML='<div style="text-align:center;font-style:italic;color:var(--text-light);padding:1.5rem">no archived thoughts yet... ˚₊·</div>';return}
+
+      if(!past.length){
+        list.innerHTML='<div style="text-align:center;font-style:italic;color:var(--text-light);padding:1.5rem">no archived thoughts yet... ˚₊·</div>';
+        return;
+      }
+
       list.innerHTML='';
       past.forEach(([key,thought])=>{
-        const item=document.createElement('div');item.className='archive-item';
+        const item=document.createElement('div');
+        item.className='archive-item';
         item.innerHTML=`<div class="archive-item-date">📅 ${formatDate(key)}</div><div class="archive-item-preview">${thought.text}</div>`;
         item.onclick=()=>{
           document.getElementById('archiveModalContent').innerHTML=`<div class="modal-title">thought of the day</div><div class="modal-date">📅 ${formatDate(key)}</div><div class="archive-thought-text">${thought.text}</div>${thought.mood?`<div style="font-size:1.5rem;margin-top:1rem">${thought.mood}</div>`:''}<div style="font-family:'Dancing Script',cursive;font-size:1.2rem;color:var(--rose);text-align:right;margin-top:1rem">— nishat 🌸</div>`;
@@ -88,13 +133,24 @@
         list.appendChild(item);
       });
     }
-    document.getElementById('archiveModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')});
+
+    document.getElementById('archiveModal').addEventListener('click',function(e){
+      if(e.target===this)this.classList.remove('open');
+    });
+
     let archiveOpen=false;
-    function toggleArchive(){
+
+    async function toggleArchive(){
       archiveOpen=!archiveOpen;
       const s=document.getElementById('archiveSection');
-      if(archiveOpen){s.classList.add('open');renderArchive()}else s.classList.remove('open');
+      if(archiveOpen){
+        s.classList.add('open');
+        await renderArchive();
+      }else{
+        s.classList.remove('open');
+      }
     }
+
     renderToday();
   </script>
 </body>

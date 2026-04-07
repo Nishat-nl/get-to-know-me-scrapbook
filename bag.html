@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="bag_images.js"></script>
   <style>
     .container{max-width:700px;margin:0 auto;padding:0 1rem 4rem}
@@ -154,6 +157,21 @@
     let shaking=false;
     let activeTooltip=null;
 
+    async function loadSiteKV(key, fallback){
+      const { data, error } = await window.supabaseClient
+        .from('site_kv')
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+
+      if(error){
+        console.error(error);
+        return fallback;
+      }
+
+      return data?.value ?? fallback;
+    }
+
     function getDefaultBags(){
       return[
         {id:'bag_1',image:'bag_1',name:'everyday bag',items:[
@@ -167,13 +185,12 @@
       ];
     }
 
-    function getBags(){
-      const stored=localStorage.getItem('scrapbook_bags');
-      return stored?JSON.parse(stored):getDefaultBags();
+    async function getBags(){
+      return await loadSiteKV('bags', getDefaultBags());
     }
 
-    function renderBagSelector(){
-      const bags=getBags();
+    async function renderBagSelector(){
+      const bags=await getBags();
       const sel=document.getElementById('bagSelector');
       sel.innerHTML='';
       if(bags.length<=1){sel.style.display='none';return}
@@ -189,14 +206,13 @@
       });
     }
 
-    function loadBag(id){
-      const bags=getBags();
+    async function loadBag(id){
+      const bags=await getBags();
       const bag=bags.find(b=>b.id===id)||bags[0];
       if(!bag)return;
       activeBagId=bag.id;
       shaking=false;
 
-      // Set bag image
       const imgKey=bag.image||'bag_1';
       const imgSrc=typeof BAG_IMAGES!=='undefined'&&BAG_IMAGES[imgKey]?BAG_IMAGES[imgKey]:`${imgKey}.png`;
       document.getElementById('bagImg').src=imgSrc;
@@ -210,10 +226,10 @@
       document.getElementById('resetArea').style.display='none';
       document.getElementById('itemsContainer').innerHTML='';
 
-      renderBagSelector();
+      await renderBagSelector();
     }
 
-    function shakeBag(){
+    async function shakeBag(){
       if(shaking)return;
       shaking=true;
       const wrapper=document.getElementById('bagWrapper');
@@ -221,17 +237,15 @@
       hint.textContent='watch! 🌸';
       wrapper.classList.add('shaking');
 
-      // After shake animation, show items falling
-      setTimeout(()=>{
+      setTimeout(async ()=>{
         wrapper.classList.remove('shaking');
         wrapper.classList.add('flipped');
         hint.textContent='tap an item to learn more ✦';
 
-        const bags=getBags();
+        const bags=await getBags();
         const bag=bags.find(b=>b.id===activeBagId)||bags[0];
         if(!bag)return;
 
-        // Slight delay then show cloth
         setTimeout(()=>{
           document.getElementById('clothArea').classList.add('visible');
           document.getElementById('resetArea').style.display='block';
@@ -263,7 +277,6 @@
 
     function toggleTooltip(el,item,e){
       e.stopPropagation();
-      // Remove any existing tooltip
       if(activeTooltip){
         activeTooltip.remove();
         activeTooltip=null;
@@ -291,16 +304,19 @@
       document.getElementById('bagHint').textContent='tap to open ✦';
     }
 
-    // Init
-    const bags=getBags();
-    activeBagId=bags[0]?.id;
-    if(bags[0]){
-      const imgKey=bags[0].image||'bag_1';
-      const imgSrc=typeof BAG_IMAGES!=='undefined'&&BAG_IMAGES[imgKey]?BAG_IMAGES[imgKey]:`${imgKey}.png`;
-      document.getElementById('bagImg').src=imgSrc;
-      document.getElementById('bagName').textContent=bags[0].name;
+    async function initBagPage(){
+      const bags=await getBags();
+      activeBagId=bags[0]?.id;
+      if(bags[0]){
+        const imgKey=bags[0].image||'bag_1';
+        const imgSrc=typeof BAG_IMAGES!=='undefined'&&BAG_IMAGES[imgKey]?BAG_IMAGES[imgKey]:`${imgKey}.png`;
+        document.getElementById('bagImg').src=imgSrc;
+        document.getElementById('bagName').textContent=bags[0].name;
+      }
+      await renderBagSelector();
     }
-    renderBagSelector();
+
+    initBagPage();
   </script>
 </body>
 </html>

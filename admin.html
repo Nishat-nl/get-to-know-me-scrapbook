@@ -549,19 +549,51 @@
       </div>`).join('');
   }
 
+  async function loadSiteKV(key, fallback){
+    const { data, error } = await window.supabaseClient
+      .from('site_kv')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+
+    if(error){
+      console.error(error);
+      return fallback;
+    }
+
+    return data?.value ?? fallback;
+  }
+
+  async function saveSiteKV(key, value){
+    const { error } = await window.supabaseClient
+      .from('site_kv')
+      .upsert({
+        key,
+        value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+
+    if(error) throw error;
+  }
+
   // ============ QUIZ ============
   const defaultQuestions=[
     {text:"what's your ideal friday night?",options:[{text:"cozy night in, movie & snacks 🏠",points:10},{text:"dinner with close friends 🍜",points:8},{text:"exploring somewhere new 🌙",points:6},{text:"loud party with lots of people 🎉",points:3}]},
     {text:"pick a cozy afternoon activity:",options:[{text:"reading with a warm drink 📖",points:10},{text:"watching a comfort show 📺",points:8},{text:"baking something 🍞",points:9},{text:"going to the gym 💪",points:4}]},
     {text:"your aesthetic is best described as:",options:[{text:"cottagecore / vintage / soft 🌿",points:10},{text:"y2k / retro / fun 💜",points:7},{text:"dark academia / moody 🕯️",points:6},{text:"clean / minimalist / modern 🤍",points:5}]}
   ];
-  function getQuestions(){return JSON.parse(localStorage.getItem('scrapbook_quiz_questions')||JSON.stringify(defaultQuestions))}
 
-  function renderQuestionsEditor(){
-    const questions=getQuestions();
-    const ed=document.getElementById('questionsEditor');ed.innerHTML='';
+  async function getQuestions(){
+    return await loadSiteKV('quiz_questions', defaultQuestions);
+  }
+
+  async function renderQuestionsEditor(){
+    const questions=await getQuestions();
+    const ed=document.getElementById('questionsEditor');
+    ed.innerHTML='';
     questions.forEach((q,qi)=>{
-      const div=document.createElement('div');div.className='q-editor-block';
+      const div=document.createElement('div');
+      div.className='q-editor-block';
       div.innerHTML=`
         <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
           <input type="text" value="${q.text.replace(/"/g,'&quot;')}" placeholder="question text..." id="q${qi}_text" style="flex:1"/>
@@ -579,31 +611,74 @@
       ed.appendChild(div);
     });
   }
-  function addQuestion(){const qs=getQuestions();qs.push({text:'',options:[{text:'',points:10},{text:'',points:5}]});localStorage.setItem('scrapbook_quiz_questions',JSON.stringify(qs));renderQuestionsEditor()}
-  function removeQuestion(qi){if(!confirm('remove this question?'))return;const qs=getQuestions();qs.splice(qi,1);localStorage.setItem('scrapbook_quiz_questions',JSON.stringify(qs));renderQuestionsEditor()}
-  function addOption(qi){const qs=getQuestions();if(qs[qi].options.length<5){qs[qi].options.push({text:'',points:5});localStorage.setItem('scrapbook_quiz_questions',JSON.stringify(qs));renderQuestionsEditor()}}
-  function removeOption(qi,oi){const qs=getQuestions();qs[qi].options.splice(oi,1);localStorage.setItem('scrapbook_quiz_questions',JSON.stringify(qs));renderQuestionsEditor()}
-  function saveQuiz(){
-    const qs=getQuestions();
+
+  async function addQuestion(){
+    const qs=await getQuestions();
+    qs.push({text:'',options:[{text:'',points:10},{text:'',points:5}]});
+    await saveSiteKV('quiz_questions', qs);
+    await renderQuestionsEditor();
+  }
+
+  async function removeQuestion(qi){
+    if(!confirm('remove this question?')) return;
+    const qs=await getQuestions();
+    qs.splice(qi,1);
+    await saveSiteKV('quiz_questions', qs);
+    await renderQuestionsEditor();
+  }
+
+  async function addOption(qi){
+    const qs=await getQuestions();
+    if(qs[qi].options.length<5){
+      qs[qi].options.push({text:'',points:5});
+      await saveSiteKV('quiz_questions', qs);
+      await renderQuestionsEditor();
+    }
+  }
+
+  async function removeOption(qi,oi){
+    const qs=await getQuestions();
+    qs[qi].options.splice(oi,1);
+    await saveSiteKV('quiz_questions', qs);
+    await renderQuestionsEditor();
+  }
+
+  async function saveQuiz(){
+    const qs=await getQuestions();
     qs.forEach((q,qi)=>{
-      const t=document.getElementById(`q${qi}_text`);if(t)q.text=t.value;
+      const t=document.getElementById(`q${qi}_text`);
+      if(t) q.text=t.value;
       q.options.forEach((o,oi)=>{
-        const ot=document.getElementById(`q${qi}_o${oi}_text`);const op=document.getElementById(`q${qi}_o${oi}_pts`);
-        if(ot)o.text=ot.value;if(op)o.points=parseInt(op.value)||5;
+        const ot=document.getElementById(`q${qi}_o${oi}_text`);
+        const op=document.getElementById(`q${qi}_o${oi}_pts`);
+        if(ot) o.text=ot.value;
+        if(op) o.points=parseInt(op.value)||5;
       });
     });
-    localStorage.setItem('scrapbook_quiz_questions',JSON.stringify(qs));toast('quiz saved! 🌸');
+    await saveSiteKV('quiz_questions', qs);
+    toast('quiz saved! 🌸');
   }
 
   // ============ BAGS ============
-  function getDefaultBags(){return[{id:'bag_1',image:'bag_1',name:'everyday bag',items:[{emoji:'🔑',name:'keys',note:'with a little mushroom keychain'},{emoji:'📱',name:'phone',note:'always on low battery'},{emoji:'💄',name:'tinted lip balm',note:'my most essential item'}]}]}
-  function getBags(){return JSON.parse(localStorage.getItem('scrapbook_bags')||JSON.stringify(getDefaultBags()))}
-  function saveBagsData(bags){localStorage.setItem('scrapbook_bags',JSON.stringify(bags))}
+  function getDefaultBags(){
+    return[{id:'bag_1',image:'bag_1',name:'everyday bag',items:[{emoji:'🔑',name:'keys',note:'with a little mushroom keychain'},{emoji:'📱',name:'phone',note:'always on low battery'},{emoji:'💄',name:'tinted lip balm',note:'my most essential item'}]}];
+  }
 
-  function renderBagsEditor(){
-    const bags=getBags();const ed=document.getElementById('bagsEditor');ed.innerHTML='';
+  async function getBags(){
+    return await loadSiteKV('bags', getDefaultBags());
+  }
+
+  async function saveBagsData(bags){
+    await saveSiteKV('bags', bags);
+  }
+
+  async function renderBagsEditor(){
+    const bags=await getBags();
+    const ed=document.getElementById('bagsEditor');
+    ed.innerHTML='';
     bags.forEach((bag,bi)=>{
-      const div=document.createElement('div');div.className='cat-block';
+      const div=document.createElement('div');
+      div.className='cat-block';
       const bagImgsHtml=typeof BAG_IMAGES!=='undefined'?Object.keys(BAG_IMAGES).map(key=>`
         <div class="bag-img-opt${bag.image===key?' selected':''}" onclick="selectBagImg(${bi},'${key}')">
           <img src="${BAG_IMAGES[key]}" alt="${key}"/>
@@ -634,52 +709,104 @@
     });
   }
 
-  function selectBagImg(bi,key){
-    const bags=getBags();bags[bi].image=key;saveBagsData(bags);renderBagsEditor();toast('bag graphic updated! 👜')}
-  function addBag(){const bags=getBags();bags.push({id:'bag_'+Date.now(),image:'bag_1',name:'new bag',items:[]});saveBagsData(bags);renderBagsEditor()}
-  function removeBag(bi){if(!confirm('remove this bag?'))return;const bags=getBags();bags.splice(bi,1);saveBagsData(bags);renderBagsEditor()}
-  function addBagItem(bi){const bags=getBags();bags[bi].items.push({emoji:'✨',name:'',note:''});saveBagsData(bags);renderBagsEditor()}
-  function removeBagItem(bi,ii){const bags=getBags();bags[bi].items.splice(ii,1);saveBagsData(bags);renderBagsEditor()}
-  function saveBag(bi){
-    const bags=getBags();
+  async function selectBagImg(bi,key){
+    const bags=await getBags();
+    bags[bi].image=key;
+    await saveBagsData(bags);
+    await renderBagsEditor();
+    toast('bag graphic updated! 👜');
+  }
+
+  async function addBag(){
+    const bags=await getBags();
+    bags.push({id:'bag_'+Date.now(),image:'bag_1',name:'new bag',items:[]});
+    await saveBagsData(bags);
+    await renderBagsEditor();
+  }
+
+  async function removeBag(bi){
+    if(!confirm('remove this bag?')) return;
+    const bags=await getBags();
+    bags.splice(bi,1);
+    await saveBagsData(bags);
+    await renderBagsEditor();
+  }
+
+  async function addBagItem(bi){
+    const bags=await getBags();
+    bags[bi].items.push({emoji:'✨',name:'',note:''});
+    await saveBagsData(bags);
+    await renderBagsEditor();
+  }
+
+  async function removeBagItem(bi,ii){
+    const bags=await getBags();
+    bags[bi].items.splice(ii,1);
+    await saveBagsData(bags);
+    await renderBagsEditor();
+  }
+
+  async function saveBag(bi){
+    const bags=await getBags();
     bags[bi].name=document.getElementById(`bagname${bi}`).value||bags[bi].name;
     bags[bi].items=bags[bi].items.map((_,ii)=>({
       emoji:document.getElementById(`bag${bi}_i${ii}_e`)?.value||'✨',
       name:document.getElementById(`bag${bi}_i${ii}_n`)?.value||'',
       note:document.getElementById(`bag${bi}_i${ii}_note`)?.value||''
     }));
-    saveBagsData(bags);renderBagsEditor();toast('bag saved! 👜');
+    await saveBagsData(bags);
+    await renderBagsEditor();
+    toast('bag saved! 👜');
   }
 
   // ============ THOUGHT ============
-  function getThoughts(){return JSON.parse(localStorage.getItem('scrapbook_thoughts')||'{}')}
-  function saveThought(){
+  async function getThoughts(){
+    return await loadSiteKV('thoughts', {});
+  }
+
+  async function saveThought(){
     const text=document.getElementById('thoughtText').value.trim();
     if(!text){alert('write something first ✦');return}
-    const thoughts=getThoughts();
+    const thoughts=await getThoughts();
     thoughts[todayKey()]={text,mood:document.getElementById('thoughtMood').value.trim()};
-    localStorage.setItem('scrapbook_thoughts',JSON.stringify(thoughts));
-    renderThoughtArchiveAdmin();toast('thought saved! 🌙');
+    await saveSiteKV('thoughts', thoughts);
+    await renderThoughtArchiveAdmin();
+    toast('thought saved! 🌙');
   }
-  function deleteThought(key){
-    if(!confirm('delete this thought?'))return;
-    const thoughts=getThoughts();delete thoughts[key];
-    localStorage.setItem('scrapbook_thoughts',JSON.stringify(thoughts));
-    renderThoughtArchiveAdmin();toast('deleted 🌿');
+
+  async function deleteThought(key){
+    if(!confirm('delete this thought?')) return;
+    const thoughts=await getThoughts();
+    delete thoughts[key];
+    await saveSiteKV('thoughts', thoughts);
+    await renderThoughtArchiveAdmin();
+    toast('deleted 🌿');
   }
+
   const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   function formatDate(key){const[y,m,d]=key.split('-');return `${MONTHS[parseInt(m)-1]} ${parseInt(d)}, ${y}`}
-  function renderThoughtArchiveAdmin(){
-    const thoughts=getThoughts();const list=document.getElementById('thoughtArchiveAdmin');
+
+  async function renderThoughtArchiveAdmin(){
+    const thoughts=await getThoughts();
+    const list=document.getElementById('thoughtArchiveAdmin');
     const entries=Object.entries(thoughts).sort(([a],[b])=>b.localeCompare(a));
-    if(!entries.length){list.innerHTML='<div style="font-style:italic;color:var(--text-light);font-size:.85rem">no thoughts yet ✦</div>';return}
+
+    if(!entries.length){
+      list.innerHTML='<div style="font-style:italic;color:var(--text-light);font-size:.85rem">no thoughts yet ✦</div>';
+      return;
+    }
+
     list.innerHTML=entries.map(([key,t])=>`
       <div class="list-item">
         <span>${formatDate(key)}: ${t.text.substring(0,55)}...</span>
         <button class="icon-btn" onclick="deleteThought('${key}')">✕</button>
       </div>`).join('');
+
     const today=thoughts[todayKey()];
-    if(today){document.getElementById('thoughtText').value=today.text;document.getElementById('thoughtMood').value=today.mood||''}
+    if(today){
+      document.getElementById('thoughtText').value=today.text;
+      document.getElementById('thoughtMood').value=today.mood||'';
+    }
   }
 
   // ============ FAVOURITES ============
@@ -688,13 +815,22 @@
     {id:'cat2',name:'series',emoji:'📺',items:[{emoji:'🌿',name:'anne with an e',note:'cottagecore dream'}]},
     {id:'cat3',name:'foods',emoji:'🍜',items:[{emoji:'🍵',name:'matcha latte',note:'daily necessity'},{emoji:'🥐',name:'croissants',note:'butter is a personality'}]}
   ];
-  function getFavourites(){return JSON.parse(localStorage.getItem('scrapbook_favourites')||JSON.stringify(defaultFavs))}
-  function saveFavsData(favs){localStorage.setItem('scrapbook_favourites',JSON.stringify(favs))}
 
-  function renderFavsEditor(){
-    const favs=getFavourites();const ed=document.getElementById('favsEditor');ed.innerHTML='';
+  async function getFavourites(){
+    return await loadSiteKV('favourites', defaultFavs);
+  }
+
+  async function saveFavsData(favs){
+    await saveSiteKV('favourites', favs);
+  }
+
+  async function renderFavsEditor(){
+    const favs=await getFavourites();
+    const ed=document.getElementById('favsEditor');
+    ed.innerHTML='';
     favs.forEach((cat,ci)=>{
-      const div=document.createElement('div');div.className='cat-block';
+      const div=document.createElement('div');
+      div.className='cat-block';
       div.innerHTML=`
         <div class="cat-name-row">
           <input type="text" value="${cat.emoji}" id="catEmoji${ci}" placeholder="🎬" style="width:55px;flex:none;text-align:center"/>
@@ -717,38 +853,59 @@
     });
   }
 
-  function addCategory(){
-    const favs=getFavourites();
+  async function addCategory(){
+    const favs=await getFavourites();
     favs.push({id:'cat_'+Date.now(),name:'new category',emoji:'⭐',items:[]});
-    saveFavsData(favs);renderFavsEditor();
+    await saveFavsData(favs);
+    await renderFavsEditor();
   }
-  function removeCat(ci){
-    if(!confirm('remove this category and all its items?'))return;
-    const favs=getFavourites();favs.splice(ci,1);saveFavsData(favs);renderFavsEditor();
+
+  async function removeCat(ci){
+    if(!confirm('remove this category and all its items?')) return;
+    const favs=await getFavourites();
+    favs.splice(ci,1);
+    await saveFavsData(favs);
+    await renderFavsEditor();
   }
-  function addFavItem(ci){const favs=getFavourites();favs[ci].items.push({emoji:'⭐',name:'',note:''});saveFavsData(favs);renderFavsEditor()}
-  function removeFavItem(ci,ii){const favs=getFavourites();favs[ci].items.splice(ii,1);saveFavsData(favs);renderFavsEditor()}
-  function saveFavourites(){
-    const favs=getFavourites();
+
+  async function addFavItem(ci){
+    const favs=await getFavourites();
+    favs[ci].items.push({emoji:'⭐',name:'',note:''});
+    await saveFavsData(favs);
+    await renderFavsEditor();
+  }
+
+  async function removeFavItem(ci,ii){
+    const favs=await getFavourites();
+    favs[ci].items.splice(ii,1);
+    await saveFavsData(favs);
+    await renderFavsEditor();
+  }
+
+  async function saveFavourites(){
+    const favs=await getFavourites();
     favs.forEach((cat,ci)=>{
-      const e=document.getElementById(`catEmoji${ci}`);const n=document.getElementById(`catName${ci}`);
-      if(e)cat.emoji=e.value;if(n)cat.name=n.value;
+      const e=document.getElementById(`catEmoji${ci}`);
+      const n=document.getElementById(`catName${ci}`);
+      if(e) cat.emoji=e.value;
+      if(n) cat.name=n.value;
       cat.items=cat.items.map((_,ii)=>({
         emoji:document.getElementById(`cat${ci}_i${ii}_e`)?.value||'⭐',
         name:document.getElementById(`cat${ci}_i${ii}_n`)?.value||'',
         note:document.getElementById(`cat${ci}_i${ii}_note`)?.value||''
       }));
     });
-    saveFavsData(favs);toast('favourites saved! ⭐');
+    await saveFavsData(favs);
+    toast('favourites saved! ⭐');
   }
 
   async function initAdmin(){
     document.getElementById('calDate').value=todayKey();
     await renderMemoryList();
-    renderQuestionsEditor();
-    renderBagsEditor();
-    renderThoughtArchiveAdmin();
-    renderFavsEditor();
+    await renderQuestionsEditor();
+    await renderBagsEditor();
+    await renderThoughtArchiveAdmin();
+    await renderFavsEditor();
   }
 </script>
 </body>

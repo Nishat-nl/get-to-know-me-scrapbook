@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
   <style>
     .container{max-width:580px;margin:0 auto;padding:0 1.2rem 4rem}
     .intro-section{text-align:center;padding:2rem 0}
@@ -139,12 +142,31 @@
       ]}
     ];
 
-    function getQuestions(){return JSON.parse(localStorage.getItem('scrapbook_quiz_questions')||JSON.stringify(defaultQuestions))}
+    async function loadSiteKV(key, fallback){
+      const { data, error } = await window.supabaseClient
+        .from('site_kv')
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+
+      if(error){
+        console.error(error);
+        return fallback;
+      }
+
+      return data?.value ?? fallback;
+    }
+
+    async function getQuestions(){
+      return await loadSiteKV('quiz_questions', defaultQuestions);
+    }
 
     let questions=[],currentQ=0,answers=[];
 
-    function startQuiz(){
-      questions=getQuestions();currentQ=0;answers=[];
+    async function startQuiz(){
+      questions=await getQuestions();
+      currentQ=0;
+      answers=[];
       document.getElementById('introSection').style.display='none';
       document.getElementById('quizSection').style.display='block';
       renderQuestion();
@@ -161,7 +183,8 @@
       grid.innerHTML='';
       q.options.forEach((opt,i)=>{
         const btn=document.createElement('button');
-        btn.className='option-btn';btn.textContent=opt.text;
+        btn.className='option-btn';
+        btn.textContent=opt.text;
         btn.onclick=()=>{
           document.querySelectorAll('.option-btn').forEach(b=>b.classList.remove('selected'));
           btn.classList.add('selected');
@@ -174,7 +197,7 @@
 
     function nextQuestion(){
       currentQ++;
-      if(currentQ>=questions.length)showResult();
+      if(currentQ>=questions.length) showResult();
       else renderQuestion();
     }
 
@@ -208,10 +231,12 @@
       if(pct>=70){
         for(let i=0;i<24;i++){
           setTimeout(()=>{
-            const p=document.createElement('div');p.className='confetti-petal';
+            const p=document.createElement('div');
+            p.className='confetti-petal';
             p.textContent=['🌸','🌷','✿','🌼','🍃'][Math.floor(Math.random()*5)];
             p.style.cssText=`left:${Math.random()*100}vw;top:-30px;font-size:${.8+Math.random()*.6}rem;animation-delay:${Math.random()*.6}s;position:fixed;pointer-events:none;animation:confettiFall 2s ease forwards`;
-            document.body.appendChild(p);setTimeout(()=>p.remove(),2800);
+            document.body.appendChild(p);
+            setTimeout(()=>p.remove(),2800);
           },i*80);
         }
       }

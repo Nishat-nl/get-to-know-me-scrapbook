@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <style>
     .container{max-width:780px;margin:0 auto;padding:0 1.2rem 4rem}
     .no-favs{text-align:center;padding:3rem 1rem;font-style:italic;color:var(--text-light);font-size:1.05rem}
@@ -76,7 +79,22 @@
   </div>
 
   <script>
-    function getFavourites(){
+    async function loadSiteKV(key, fallback){
+      const { data, error } = await window.supabaseClient
+        .from('site_kv')
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+
+      if(error){
+        console.error(error);
+        return fallback;
+      }
+
+      return data?.value ?? fallback;
+    }
+
+    async function getFavourites(){
       const def=[
         {id:'cat1',name:'movies',emoji:'🎬',items:[
           {emoji:'🌸',name:'little women',note:'i cry every time'},
@@ -93,34 +111,36 @@
           {emoji:'🍓',name:'strawberries',note:'only in season tho'}
         ]}
       ];
-      return JSON.parse(localStorage.getItem('scrapbook_favourites')||JSON.stringify(def));
+      return await loadSiteKV('favourites', def);
     }
 
     let activeCategory='all';
 
-    function renderTabs(){
-      const cats=getFavourites();
+    async function renderTabs(){
+      const cats=await getFavourites();
       const tabs=document.getElementById('catTabs');
       tabs.innerHTML='';
       if(!cats.length)return;
+
       const allTab=document.createElement('div');
       allTab.className='cat-tab'+(activeCategory==='all'?' active':'');
       allTab.innerHTML='<span class="cat-emoji">✦</span> all';
-      allTab.onclick=()=>{activeCategory='all';renderAll()};
+      allTab.onclick=()=>{activeCategory='all';renderAll();};
       tabs.appendChild(allTab);
+
       cats.forEach(cat=>{
         const tab=document.createElement('div');
         tab.className='cat-tab'+(activeCategory===cat.id?' active':'');
         tab.innerHTML=`<span class="cat-emoji">${cat.emoji}</span>${cat.name}`;
-        tab.onclick=()=>{activeCategory=cat.id;renderAll()};
+        tab.onclick=()=>{activeCategory=cat.id;renderAll();};
         tabs.appendChild(tab);
       });
     }
 
-    function renderAll(){
-      const cats=getFavourites();
+    async function renderAll(){
+      const cats=await getFavourites();
       const content=document.getElementById('favsContent');
-      renderTabs();
+      await renderTabs();
 
       if(!cats.length){
         content.innerHTML=`<div class="no-favs"><div>⭐</div><div>no favourites added yet...</div><div style="font-size:.8rem;margin-top:.5rem">check back soon ✦</div></div>`;
@@ -129,11 +149,13 @@
 
       const toShow=activeCategory==='all'?cats:cats.filter(c=>c.id===activeCategory);
       content.innerHTML='';
+
       toShow.forEach((cat,ci)=>{
         if(!cat.items||!cat.items.length)return;
         const section=document.createElement('div');
         section.className='cat-section';
         section.style.animationDelay=(ci*.08)+'s';
+
         let itemsHtml=cat.items.map((item,ii)=>`
           <div class="fav-card" style="animation-delay:${(ci*.1+ii*.05)}s">
             <span class="fav-card-emoji">${item.emoji||'⭐'}</span>
@@ -141,6 +163,7 @@
             ${item.note?`<div class="fav-card-note">${item.note}</div>`:''}
           </div>
         `).join('');
+
         section.innerHTML=`
           <div class="cat-header">
             <span class="cat-header-emoji">${cat.emoji}</span>
